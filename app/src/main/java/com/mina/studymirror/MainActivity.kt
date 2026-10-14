@@ -24,8 +24,10 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
-import com.google.android.gms.code.GmsBarcodeScannerOptions
-import com.google.android.gms.code.GmsBarcodeScanning
+
+import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
+import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
+
 import com.google.mlkit.vision.barcode.common.Barcode
 import java.net.HttpURLConnection
 import java.net.Inet4Address
