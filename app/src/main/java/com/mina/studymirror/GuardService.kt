@@ -117,7 +117,9 @@ class GuardService : AccessibilityService() {
             }
             "break" -> {
                 val secs = q["sec"]?.toIntOrNull() ?: ((q["min"]?.toIntOrNull() ?: 10) * 60)
-                ui.post { cmdBreak(secs) }
+                val endAt = SystemClock.elapsedRealtime() + secs * 1000L
+                ui.post { cmdBreak(secs, endAt) }
+                return "{\"ok\":true,\"leftMs\":${secs * 1000L}}"
             }
             "end" -> ui.post { cmdEnd() }
             "state" -> {}
@@ -130,8 +132,9 @@ class GuardService : AccessibilityService() {
 
     private fun stateJson(): String {
         val left = if (mode == Mode.BREAK) ((breakEndAt - SystemClock.elapsedRealtime()) / 1000).coerceAtLeast(0L) else 0L
+        val leftMs = if (mode == Mode.BREAK) (breakEndAt - SystemClock.elapsedRealtime()).coerceAtLeast(0L) else 0L
         val notes = Prefs.notes(this).take(6).joinToString(",") { "\"" + js(it) + "\"" }
-        return "{\"mode\":\"$mode\",\"block\":$block,\"total\":$total,\"breakLeft\":$left," +
+        return "{\"mode\":\"$mode\",\"block\":$block,\"total\":$total,\"breakLeft\":$left,\"breakLeftMs\":$leftMs," +
             "\"stats\":{\"blocks\":${Prefs.count(this, "blocks")},\"blocked\":${Prefs.count(this, "blocked")}," +
             "\"urges\":${Prefs.count(this, "urges")},\"extensions\":${Prefs.count(this, "extensions")}}," +
             "\"notes\":[$notes]}"
@@ -152,12 +155,12 @@ class GuardService : AccessibilityService() {
         buzz()
     }
 
-    private fun cmdBreak(seconds: Int) {
+    private fun cmdBreak(seconds: Int, endAt: Long) {
         ui.removeCallbacks(tick)
         mode = Mode.BREAK
         extUsed = false
         Prefs.bump(this, "blocks")
-        breakEndAt = SystemClock.elapsedRealtime() + seconds * 1000L
+        breakEndAt = endAt
         endingShown = false
         showBreakMenu()
         buzz()

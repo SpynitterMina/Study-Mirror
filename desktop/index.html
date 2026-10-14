@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Study Mirror</title>
+<style>
+  :root { --bg:#0e1a24; --card:#15242f; --ink:#e8f1ec; --mute:#8aa0b0; --line:#243847; --acc:#7aa7ff; }
+  body[data-mode="break"] { --bg:#0e2a20; --acc:#7fd1ae; }
+  body[data-mode="idle"] { --bg:#0e1a24; }
+  * { box-sizing:border-box; user-select:none; }
+  html,body { height:100%; margin:0; overflow:hidden; }
+  body { display:flex; flex-direction:column; color:var(--ink); font-family:"Segoe UI",system-ui,sans-serif;
+    background:radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--acc) 16%, transparent), transparent 60%), var(--bg); transition:background .8s; }
+  .bar { display:flex; align-items:center; gap:6px; padding:8px 10px 8px 16px; -webkit-app-region:drag; font-size:13px; color:var(--mute); }
+  .bar .t { flex:1; letter-spacing:.12em; text-transform:uppercase; font-size:11px; }
+  .dot { width:8px; height:8px; border-radius:50%; background:#51606b; margin-right:6px; display:inline-block; }
+  .dot.on { background:var(--acc); }
+  .bar button, .wc { -webkit-app-region:no-drag; }
+  .tb { background:none; border:0; color:var(--mute); padding:5px 9px; border-radius:8px; cursor:pointer; font-size:13px; }
+  .tb:hover { background:var(--card); color:var(--ink); }
+  .tb.on { color:var(--acc); }
+  .stage { flex:1; overflow:auto; padding:0 24px 20px; display:flex; flex-direction:column; align-items:center; }
+  .task { width:100%; background:none; border:0; border-bottom:1px solid var(--line); color:var(--ink); text-align:center; font-size:20px; padding:10px 4px; font-family:Georgia,serif; user-select:text; }
+  .task:focus { outline:none; border-color:var(--acc); }
+  .ringwrap { position:relative; width:min(300px, 72vw); aspect-ratio:1; margin:22px 0 14px; }
+  svg { width:100%; height:100%; transform:rotate(-90deg); }
+  .track { stroke:var(--line); fill:none; stroke-width:7; }
+  .ring { stroke:var(--acc); fill:none; stroke-width:7; stroke-linecap:round; stroke-dasharray:691; filter:drop-shadow(0 0 7px var(--acc)); transition:stroke-dashoffset .25s linear, stroke .6s; }
+  .c { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  .lbl { font-size:12px; letter-spacing:.16em; text-transform:uppercase; color:var(--mute); }
+  .time { font-family:Georgia,serif; font-size:clamp(44px, 14vmin, 84px); font-weight:700; font-variant-numeric:tabular-nums; line-height:1.05; }
+  .blk { color:var(--acc); font-size:14px; margin-top:2px; }
+  .pick { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+  .pick button.rnd { width:34px; height:34px; border-radius:50%; border:1px solid var(--line); background:var(--card); color:var(--ink); font-size:18px; cursor:pointer; }
+  .pick input { width:62px; text-align:center; font-size:22px; font-family:Georgia,serif; background:none; border:0; border-bottom:1px solid var(--line); color:var(--ink); user-select:text; }
+  .pick input:focus { outline:none; border-color:var(--acc); }
+  .chips { display:flex; gap:8px; margin:6px 0 16px; }
+  .chip { border:1px solid var(--line); background:var(--card); color:var(--mute); padding:5px 12px; border-radius:20px; cursor:pointer; font-size:13px; }
+  .chip.sel, .chip:hover { color:var(--ink); border-color:var(--acc); }
+  .acts { width:100%; display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .btn { border:0; border-radius:14px; padding:15px; font-size:16px; font-weight:600; cursor:pointer; background:var(--acc); color:#07121a; transition:transform .15s, filter .2s; }
+  .btn:hover { filter:brightness(1.1); }
+  .btn:active { transform:scale(.97); }
+  .btn.alt { background:var(--card); color:var(--ink); border:1px solid var(--line); }
+  .btn.full { grid-column:1/-1; }
+  .small { font-size:12px; color:var(--mute); margin-top:12px; text-align:center; min-height:16px; }
+  .drawer { display:none; width:100%; margin-top:16px; padding:14px; background:var(--card); border:1px solid var(--line); border-radius:14px; font-size:14px; color:var(--mute); }
+  body.set .drawer { display:block; }
+  .drawer h4 { margin:12px 0 8px; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--ink); }
+  .drawer h4:first-child { margin-top:0; }
+  .drawer input[type=text], .drawer input[type=number] { width:100%; margin-bottom:8px; background:var(--bg); border:1px solid var(--line); color:var(--ink); border-radius:10px; padding:9px 11px; font-size:14px; user-select:text; }
+  .themes { display:flex; gap:10px; }
+  .sw { width:24px; height:24px; border-radius:50%; cursor:pointer; border:2px solid transparent; }
+  .sw.sel { border-color:var(--ink); }
+  .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; text-align:center; }
+  .stats b { display:block; font-size:20px; color:var(--ink); font-family:Georgia,serif; }
+  .stats span { font-size:10px; }
+  #nlist div { margin-top:5px; }
+  label.row { display:flex; gap:8px; align-items:center; }
+  /* mini always-on-top mode */
+  body.mini .bar, body.mini .stage > :not(.mini-row) { display:none; }
+  .mini-row { display:none; }
+  body.mini .mini-row { display:flex; align-items:center; gap:10px; width:100%; height:100%; -webkit-app-region:drag; padding:0 4px; }
+  body.mini .stage { padding:0 12px; justify-content:center; overflow:hidden; }
+  .mini-row .time { font-size:38px; }
+  .mini-row .who { flex:1; min-width:0; }
+  .mini-row .nm { font-size:13px; color:var(--mute); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .mini-row button { -webkit-app-region:no-drag; }
+  body.web .wc { display:none; }
+  :focus-visible { outline:2px solid var(--acc); outline-offset:2px; }
+</style>
+</head>
+<body data-mode="idle">
+<div class="bar">
+  <span class="dot" id="dot"></span><span class="t" id="msg">Study Mirror</span>
+  <button class="tb wc" id="pin" title="Keep on top (P)">Pin</button>
+  <button class="tb wc" id="mini" title="Mini window (M)">Mini</button>
+  <button class="tb" id="gear" title="Settings">Settings</button>
+  <button class="tb wc" id="wmin">&ndash;</button>
+  <button class="tb wc" id="wmax">&#9633;</button>
+  <button class="tb wc" id="wx">&#10005;</button>
+</div>
+
+<div class="stage">
+  <input class="task" id="task" placeholder="What are you working on?" maxlength="60" autocomplete="off">
+
+  <div class="ringwrap">
+    <svg viewBox="0 0 240 240"><circle class="track" cx="120" cy="120" r="110"/><circle class="ring" id="ring" cx="120" cy="120" r="110"/></svg>
+    <div class="c" aria-live="polite">
+      <div class="lbl" id="label">Ready</div>
+      <div class="time" id="time">50:00</div>
+      <div class="blk" id="blk"></div>
+    </div>
+  </div>
+
+  <div class="pick"><button class="rnd" id="dm" aria-label="5 minutes less">&minus;</button><input id="fmin" type="number" min="1" max="240" value="50" aria-label="Minutes"><span class="lbl">min</span><button class="rnd" id="dp" aria-label="5 minutes more">+</button></div>
+  <div class="chips" id="chips"><button class="chip" data-m="25">25</button><button class="chip" data-m="50">50</button><button class="chip" data-m="90">90</button></div>
+
+  <div class="acts">
+    <button class="btn full" id="start">Start block</button>
+    <button class="btn alt" id="brk">Break &middot; <span id="bl">10</span> min</button>
+    <button class="btn alt" id="end">End session</button>
+  </div>
+  <div class="small" id="hint">Space starts or pauses &middot; M mini &middot; P pin</div>
+
+  <div class="drawer" id="drawer">
+    <h4>Look</h4>
+    <div class="themes" id="themes"></div>
+    <h4>Timer</h4>
+    <label class="row"><input type="number" id="bmin" min="1" max="60" value="10" style="width:70px;margin:0"> break minutes</label>
+    <label class="row" style="margin-top:8px"><input type="number" id="tot" min="1" max="12" value="5" style="width:70px;margin:0"> blocks today</label>
+    <label class="row" style="margin-top:8px"><input type="checkbox" id="snd" checked> sound when time is up</label>
+    <h4>Phone</h4>
+    <input type="text" id="ip" placeholder="Phone address, e.g. 192.168.1.7">
+    <input type="text" id="code" placeholder="Pairing code" inputmode="numeric">
+    <div class="stats"><div><b id="s1">0</b><span>blocks</span></div><div><b id="s2">0</b><span>escapes stopped</span></div><div><b id="s3">0</b><span>urges</span></div><div><b id="s4">0</b><span>extensions</span></div></div>
+    <div id="nlist"></div>
+  </div>
+
+  <div class="mini-row">
+    <div class="who"><div class="time" id="mtime">50:00</div><div class="nm" id="mname"></div></div>
+    <button class="tb" id="mpause">Pause</button><button class="tb" id="mback">Expand</button>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const C = 691, L = localStorage;
+const send = (c, v) => window.sm && window.sm.send(c, v);
+if (!window.sm) document.body.classList.add('web');
+
+let block = +L.sm_block || 1, total = +L.sm_total || 5;
+let mode = 'idle', endAt = 0, dur = 0, paused = 0, pinned = L.sm_pin === '1', mini = false, beeped = false;
+const themes = { Blue:'#7aa7ff', Violet:'#a58bff', Teal:'#5fd4c8', Green:'#8ad97a', Amber:'#f0b45c', Rose:'#ee8fa8' };
+
+$('ip').value = L.sm_ip || ''; $('code').value = L.sm_code || '';
+$('fmin').value = L.sm_fmin || 50; $('bmin').value = L.sm_bmin || 10; $('tot').value = total;
+$('task').value = L.sm_task || ''; $('snd').checked = L.sm_snd !== '0';
+if (!$('ip').value || !$('code').value) document.body.classList.add('set');
+
+function accent(c) { document.documentElement.style.setProperty('--acc', c); L.sm_acc = c; }
+const theme = L.sm_acc || themes.Blue;
+document.body.dataset.theme = theme;
+for (const [n, c] of Object.entries(themes)) {
+  const s = document.createElement('div'); s.className = 'sw' + (c === theme ? ' sel' : ''); s.style.background = c; s.title = n;
+  s.onclick = () => { document.querySelectorAll('.sw').forEach(x => x.classList.remove('sel')); s.classList.add('sel'); applyAcc(c); };
+  $('themes').appendChild(s);
+}
+// focus uses the chosen accent, break stays green
+function applyAcc(c) { L.sm_acc = c; document.body.style.setProperty('--focus-acc', c); refreshAcc(); }
+function refreshAcc() {
+  const c = mode === 'break' ? '#7fd1ae' : (L.sm_acc || themes.Blue);
+  document.documentElement.style.setProperty('--acc', c);
+  document.body.style.removeProperty('--acc');
+}
+
+const mins = () => Math.min(240, Math.max(1, parseInt($('fmin').value) || 50));
+const fmt = s => { const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60;
+  return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0'); };
+function say(t, on) { $('msg').textContent = t; $('dot').className = 'dot' + (on ? ' on' : ''); }
+
+function paint() {
+  $('blk').textContent = 'Block ' + block + ' of ' + total;
+  $('start').textContent = mode === 'focus' ? (paused ? 'Resume' : 'Pause') : 'Start block ' + block;
+  $('mpause').textContent = paused ? 'Resume' : 'Pause';
+  $('bl').textContent = $('bmin').value || 10;
+  document.querySelectorAll('.chip').forEach(c => c.classList.toggle('sel', +c.dataset.m === mins()));
+  L.sm_block = block; L.sm_total = total; L.sm_fmin = mins(); L.sm_bmin = $('bmin').value; L.sm_task = $('task').value;
+  $('mname').textContent = $('task').value || (mode === 'break' ? 'Break' : 'Focus');
+}
+function setMode(m, secs) {
+  mode = m; paused = 0; beeped = false; document.body.dataset.mode = m;
+  $('label').textContent = m === 'focus' ? 'Focus' : m === 'break' ? 'Break' : 'Ready';
+  dur = secs || 0; endAt = dur ? Date.now() + dur * 1000 : 0;
+  $('ring').style.transition = 'none'; $('ring').style.strokeDashoffset = 0;
+  void $('ring').getBoundingClientRect(); $('ring').style.transition = '';
+  refreshAcc(); paint();
+}
+function beep() {
+  if (!$('snd').checked) return;
+  try { const a = new AudioContext(), o = a.createOscillator(), g = a.createGain();
+    o.connect(g); g.connect(a.destination); o.frequency.value = 660; g.gain.value = .12; o.start(); o.stop(a.currentTime + .4); } catch (e) {}
+}
+setInterval(() => {
+  let left;
+  if (mode === 'idle') left = mins() * 60;
+  else if (paused) left = Math.ceil(paused / 1000);
+  else left = Math.max(0, Math.ceil((endAt - Date.now()) / 1000));   // ceil, same as the phone
+  $('time').textContent = $('mtime').textContent = fmt(left);
+  if (mode === 'idle') { document.title = 'Study Mirror'; return; }
+  document.title = fmt(left) + ' · ' + $('mname').textContent;
+  $('ring').style.strokeDashoffset = C * (1 - Math.min(1, left / dur));
+  if (left === 0 && !beeped && !paused) { beeped = true; beep(); say(mode === 'focus' ? 'Block done. Take your break.' : 'Break over. Back to it.', true); }
+}, 100);
+
+// ---------- phone link
+function baseUrl() {
+  let ip = $('ip').value.trim(); if (!ip) throw new Error('no ip');
+  if (!ip.includes(':')) ip += ':8080';
+  L.sm_ip = $('ip').value.trim(); L.sm_code = $('code').value.trim();
+  return 'http://' + ip;
+}
+async function call(cmd, params = {}) {
+  const q = new URLSearchParams(Object.assign({ t: $('code').value.trim() }, params)).toString();
+  const url = baseUrl() + '/' + cmd + '?' + q, t0 = performance.now();
+  try { const r = await (await fetch(url)).json(); r.rtt = performance.now() - t0; return r; }
+  catch (e) { await fetch(url, { mode: 'no-cors' }); return null; }
+}
+async function run(cmd, params, ok) {
+  try {
+    const r = await call(cmd, params);
+    if (r && r.error) { say('Phone says: ' + r.error, false); return { ok: false }; }
+    say(ok, true); return { ok: true, r };
+  } catch (e) { say("Can't reach the phone. Same Wi-Fi? Is Study Mirror on?", false); return { ok: false }; }
+}
+
+async function startBlock() {
+  const m = mins();
+  const x = await run('focus', { block, total }, 'Focus started: block ' + block);
+  if (x.ok) setMode('focus', m * 60);
+}
+function togglePause() {
+  if (mode !== 'focus') return;
+  if (paused) { endAt = Date.now() + paused; paused = 0; } else { paused = Math.max(0, endAt - Date.now()); }
+  paint();
+}
+async function startBreak() {
+  const m = Math.max(1, parseInt($('bmin').value) || 10);
+  const x = await run('break', { min: m }, 'Break started: ' + m + ' min');
+  if (!x.ok) return;
+  setMode('break', m * 60);
+  // start from the phone's own clock, minus half the round trip, so both timers hit zero together
+  if (x.r && x.r.leftMs) endAt = Date.now() + x.r.leftMs - (x.r.rtt || 0) / 2;
+  block++; paint();
+}
+$('start').onclick = () => (mode === 'focus' ? togglePause() : startBlock());
+$('mpause').onclick = togglePause;
+$('brk').onclick = startBreak;
+$('end').onclick = async () => { const x = await run('end', {}, 'Session ended'); if (x.ok) setMode('idle', 0); };
+
+async function poll() {
+  if (!$('ip').value.trim() || !$('code').value.trim()) return;
+  try {
+    const r = await call('state'); if (!r || !r.mode) return;
+    say('Phone connected (' + (r.mode === 'IDLE' ? 'idle' : r.mode.toLowerCase() + ', block ' + r.block) + ')', true);
+    if (mode === 'break' && r.mode === 'BREAK') {            // keep following the phone, even after an extension
+      const left = r.breakLeftMs - (r.rtt || 0) / 2;
+      endAt = Date.now() + left; if (left / 1000 > dur) dur = Math.ceil(left / 1000);
+    } else if (mode === 'break' && r.mode === 'FOCUS') {      // phone finished the break and moved on
+      setMode('focus', mins() * 60);
+    } else if (r.mode === 'IDLE' && mode !== 'idle') setMode('idle', 0);
+    if (r.stats) { $('s1').textContent = r.stats.blocks; $('s2').textContent = r.stats.blocked; $('s3').textContent = r.stats.urges; $('s4').textContent = r.stats.extensions; }
+    $('nlist').replaceChildren(...(r.notes || []).map(t => Object.assign(document.createElement('div'), { textContent: t })));
+  } catch (e) { say("Can't reach the phone. Same Wi-Fi? Is Study Mirror on?", false); }
+}
+
+// ---------- window controls
+function setPin(on) { pinned = on; L.sm_pin = on ? '1' : '0'; $('pin').classList.toggle('on', on); send('pin', on); }
+function setMini(on) { mini = on; document.body.classList.toggle('mini', on); send('mini', on); if (!on) send('pin', pinned); }
+$('pin').onclick = () => setPin(!pinned);
+$('mini').onclick = () => setMini(true);
+$('mback').onclick = () => setMini(false);
+$('wmin').onclick = () => send('min'); $('wmax').onclick = () => send('max'); $('wx').onclick = () => send('close');
+$('gear').onclick = () => document.body.classList.toggle('set');
+setPin(pinned);
+
+$('dm').onclick = () => { $('fmin').value = Math.max(1, mins() - 5); paint(); };
+$('dp').onclick = () => { $('fmin').value = Math.min(240, mins() + 5); paint(); };
+document.querySelectorAll('.chip').forEach(c => c.onclick = () => { $('fmin').value = c.dataset.m; paint(); });
+['fmin', 'bmin', 'task'].forEach(i => $(i).oninput = paint);
+$('tot').onchange = () => { total = Math.max(1, +$('tot').value || 5); paint(); };
+$('snd').onchange = () => { L.sm_snd = $('snd').checked ? '1' : '0'; };
+document.addEventListener('keydown', e => {
+  if (/INPUT|TEXTAREA/.test(e.target.tagName)) return;
+  if (e.code === 'Space') { e.preventDefault(); $('start').click(); }
+  else if (e.key === 'm' || e.key === 'M') setMini(!mini);
+  else if (e.key === 'p' || e.key === 'P') setPin(!pinned);
+});
+
+applyAcc(L.sm_acc || themes.Blue); paint(); poll(); setInterval(poll, 2000);
+</script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+{
+  "name": "study-mirror-control",
+  "version": "1.0.0",
+  "description": "Study Mirror control center",
+  "main": "main.js",
+  "author": "Mina",
+  "scripts": { "start": "electron ." },
+  "build": {
+    "appId": "com.mina.studymirror.control",
+    "productName": "Study Mirror Control",
+    "files": ["main.js", "preload.js", "index.html"],
+    "directories": { "output": "dist" },
+    "win": { "target": "portable" }
+  },
+  "devDependencies": { "electron": "^31.0.0", "electron-builder": "^24.13.3" }
+}
