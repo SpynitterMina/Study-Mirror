@@ -2,6 +2,7 @@ package com.mina.studymirror
 
 import android.app.Activity
 import android.content.Intent
+import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Bundle
 import android.provider.Settings
@@ -19,6 +20,8 @@ class MainActivity : Activity() {
 
     private lateinit var status: TextView
     private lateinit var info: TextView
+    private lateinit var stats: TextView
+    private lateinit var notes: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -39,6 +42,9 @@ class MainActivity : Activity() {
         status = TextView(this).apply { textSize = 16f; setPadding(0, pad / 2, 0, pad / 2) }
         info = TextView(this).apply { textSize = 16f; setPadding(0, pad / 2, 0, pad / 2) }
         col.addView(status)
+        stats = TextView(this).apply { textSize = 15f; setPadding(0, pad / 2, 0, pad / 2); setTextColor(Color.parseColor("#7FD1AE")) }
+        notes = TextView(this).apply { textSize = 14f; setPadding(0, pad / 2, 0, pad / 2) }
+        col.addView(stats)
         col.addView(info)
 
         col.addView(button("1. Turn on Study Mirror in Accessibility") {
@@ -47,6 +53,8 @@ class MainActivity : Activity() {
         col.addView(button("2. Battery settings (allow background)") {
             startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
         })
+        col.addView(button("Clear parked notes") { Prefs.clearNotes(this); refresh() })
+        col.addView(notes)
         col.addView(button("Test: 45-second break") { test("break", mapOf("sec" to "45")) })
         col.addView(button("Test: focus block 2 of 5") { test("focus", mapOf("block" to "2", "total" to "5")) })
         col.addView(button("Test: end session") { test("end", emptyMap()) })
@@ -92,6 +100,12 @@ class MainActivity : Activity() {
             s.port == 0 -> "Status: starting..."
             else -> "Status: running. Listening on port ${s.port}"
         }
+        stats.text = "Today: ${Prefs.count(this, "blocks")} blocks done · " +
+            "${Prefs.count(this, "blocked")} escapes stopped · " +
+            "${Prefs.count(this, "urges")} urges ridden out · " +
+            "${Prefs.count(this, "extensions")} break extensions"
+        val n = Prefs.notes(this)
+        notes.text = if (n.isEmpty()) "Parked notes: none yet" else "Parked notes\n" + n.take(8).joinToString("\n") { "• $it" }
         val port = if (s != null && s.port != 0) s.port else GuardService.PORT
         info.text = "Pairing code: ${Prefs.token(this)}\n\nPhone address (type this into the laptop page):\n" +
             addresses().joinToString("\n") { "$it:$port" }

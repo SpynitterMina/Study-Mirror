@@ -33,4 +33,29 @@ object Prefs {
         p.edit().putString("token", fresh).apply()
         return fresh
     }
+
+    // ---- today's stats (keys carry the date, so they reset by themselves)
+    private fun day() = java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.US).format(java.util.Date())
+
+    fun bump(c: Context, k: String) {
+        val key = day() + "_" + k
+        val p = sp(c)
+        p.edit().putInt(key, p.getInt(key, 0) + 1).apply()
+    }
+
+    fun count(c: Context, k: String): Int = sp(c).getInt(day() + "_" + k, 0)
+
+    // ---- parked notes (newest first)
+    fun notes(c: Context): List<String> =
+        (sp(c).getString("notes", "") ?: "").split("\u0001").filter { it.isNotBlank() }
+
+    fun addNote(c: Context, text: String) {
+        val l = notes(c).toMutableList()
+        l.add(0, text)
+        sp(c).edit().putString("notes", l.take(30).joinToString("\u0001")).apply()
+    }
+
+    fun clearNotes(c: Context) {
+        sp(c).edit().remove("notes").apply()
+    }
 }

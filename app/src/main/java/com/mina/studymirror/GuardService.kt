@@ -19,6 +19,7 @@ import android.view.View
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.widget.Button
+import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -37,7 +38,7 @@ import kotlin.concurrent.thread
 class GuardService : AccessibilityService() {
 
     enum class Mode { IDLE, FOCUS, BREAK }
-    enum class Kind { MENU, ENDING, BACK, BLOCKED }
+    enum class Kind { MENU, ENDING, BACK, BLOCKED, URGE, EXTEND }
 
     companion object {
         var instance: GuardService? = null
@@ -52,6 +53,7 @@ class GuardService : AccessibilityService() {
     private var breakEndAt = 0L
     private var endingShown = false
     private var lastBlockAt = 0L
+    private var extUsed = false
 
     private var overlay: View? = null
     private var overlayKind: Kind? = null
@@ -98,6 +100,7 @@ class GuardService : AccessibilityService() {
         val now = SystemClock.elapsedRealtime()
         if (now - lastBlockAt < 1500) return
         lastBlockAt = now
+        Prefs.bump(this, "blocked")
         performGlobalAction(GLOBAL_ACTION_HOME)
         if (overlay == null) showBlocked()
     }
@@ -123,10 +126,18 @@ class GuardService : AccessibilityService() {
         return stateJson()
     }
 
+    private fun js(t: String) = t.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", " ")
+
     private fun stateJson(): String {
         val left = if (mode == Mode.BREAK) ((breakEndAt - SystemClock.elapsedRealtime()) / 1000).coerceAtLeast(0L) else 0L
-        return "{\"mode\":\"$mode\",\"block\":$block,\"total\":$total,\"breakLeft\":$left}"
+        val notes = Prefs.notes(this).take(6).joinToString(",") { "\"" + js(it) + "\"" }
+        return "{\"mode\":\"$mode\",\"block\":$block,\"total\":$total,\"breakLeft\":$left," +
+            "\"stats\":{\"blocks\":${Prefs.count(this, "blocks")},\"blocked\":${Prefs.count(this, "blocked")}," +
+            "\"urges\":${Prefs.count(this, "urges")},\"extensions\":${Prefs.count(this, "extensions")}}," +
+            "\"notes\":[$notes]}"
     }
+
+    private fun nowText() = java.text.SimpleDateFormat("h:mm a", java.util.Locale.US).format(java.util.Date())
 
     private fun label(n: Int) = if (total > 0) "Block $n of $total" else "Block $n"
 
@@ -144,6 +155,8 @@ class GuardService : AccessibilityService() {
     private fun cmdBreak(seconds: Int) {
         ui.removeCallbacks(tick)
         mode = Mode.BREAK
+        extUsed = false
+        Prefs.bump(this, "blocks")
         breakEndAt = SystemClock.elapsedRealtime() + seconds * 1000L
         endingShown = false
         showBreakMenu()
@@ -254,6 +267,7 @@ class GuardService : AccessibilityService() {
         r.addView(cd)
         r.addView(tv("Time to go back. ${label(block + 1)} is waiting.\nYou've got this.", 18f))
         r.addView(btn("I'm ready") { goHomeAndClose() })
+        if (!extUsed) r.addView(btn("I need 5 more minutes") { showExtend() })
         show(Kind.ENDING, r)
         countdown = cd
         updateCountdown()
@@ -272,10 +286,107 @@ class GuardService : AccessibilityService() {
             r.addView(tv("You're in ${label(block)}", 26f, bold = true))
             r.addView(tv(focusLines.random(), 17f))
             r.addView(btn("Back to focus") { goHomeAndClose() })
+            r.addView(btn("I feel the urge to escape") { showUrge() })
         }
         show(Kind.BLOCKED, r)
         val v = overlay
         ui.postDelayed({ if (v != null && overlay === v) removeOverlay() }, 6000)
+    }
+
+    private fun showUrge() {
+        Prefs.bump(this, "urges")
+        val r = box(Color.parseColor("#2A2140"))
+        r.addView(tv("🌊", 52f))
+        r.addView(tv("The urge peaks, then it fades", 24f, bold = true))
+        val cd = tv("3:00", 48f, bold = true)
+        r.addView(cd)
+        r.addView(tv("What are you feeling right now? One line is enough.", 16f))
+        val et = EditText(this).apply {
+            setTextColor(Color.WHITE)
+            setHintTextColor(Color.parseColor("#9A90B8"))
+            hint = "too much, scared I won't finish..."
+            maxLines = 3
+        }
+        r.addView(et, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        r.addView(btn("Write it down, keep going") {
+            val t = et.text.toString().trim()
+            if (t.isNotEmpty()) Prefs.addNote(this, nowText() + "  " + t)
+            goHomeAndClose()
+        })
+        show(Kind.URGE, r)
+        val end = SystemClock.elapsedRealtime() + 180_000L
+        val v = overlay
+        val run = object : Runnable {
+            override fun run() {
+                if (overlay !== v) return
+                val s = ((end - SystemClock.elapsedRealtime() + 999) / 1000).coerceAtLeast(0L)
+                if (s > 0) {
+                    cd.text = "%d:%02d".format(s / 60, s % 60)
+                    ui.postDelayed(this, 500)
+                } else {
+                    cd.text = "You rode it out"
+                }
+            }
+        }
+        ui.post(run)
+    }
+
+    private fun showExtend() {
+        val hold = 75_000L
+        breakEndAt += hold
+        endingShown = true
+        val r = box(Color.parseColor("#14283A"))
+        r.addView(tv("5 more minutes?", 26f, bold = true))
+        r.addView(tv("Why do you need them? Be honest. The wait is part of the deal.", 16f))
+        val et = EditText(this).apply {
+            setTextColor(Color.WHITE)
+            setHintTextColor(Color.parseColor("#7F93A3"))
+            hint = "my reason..."
+            maxLines = 3
+        }
+        r.addView(et, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        val go = btn("Wait 60s") {}
+        go.isEnabled = false
+        go.alpha = 0.5f
+        go.setOnClickListener {
+            val why = et.text.toString().trim()
+            if (why.isEmpty()) {
+                Toast.makeText(this, "Write a reason first", Toast.LENGTH_SHORT).show()
+            } else {
+                extUsed = true
+                Prefs.bump(this, "extensions")
+                Prefs.addNote(this, nowText() + "  extended break: " + why)
+                breakEndAt += 300_000L - hold
+                endingShown = false
+                showBreakMenu()
+            }
+        }
+        r.addView(go)
+        r.addView(btn("Never mind, back to focus") {
+            breakEndAt -= hold
+            endingShown = false
+            showEnding()
+        })
+        show(Kind.EXTEND, r)
+        val end = SystemClock.elapsedRealtime() + 60_000L
+        val v = overlay
+        val run = object : Runnable {
+            override fun run() {
+                if (overlay !== v) return
+                val s = ((end - SystemClock.elapsedRealtime() + 999) / 1000).coerceAtLeast(0L)
+                if (s > 0) {
+                    go.text = "Wait ${s}s"
+                    ui.postDelayed(this, 500)
+                } else {
+                    go.text = "Give me 5 minutes"
+                    go.isEnabled = true
+                    go.alpha = 1f
+                }
+            }
+        }
+        ui.post(run)
     }
 
     private fun openMusic() {
@@ -346,6 +457,7 @@ class GuardService : AccessibilityService() {
                 lp.layoutInDisplayCutoutMode =
                     WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
             }
+            lp.softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN
             v.isFocusableInTouchMode = true
             v.setOnKeyListener { _, code, ev ->
                 if (code == KeyEvent.KEYCODE_BACK && ev.action == KeyEvent.ACTION_UP) {
@@ -355,7 +467,9 @@ class GuardService : AccessibilityService() {
                     false
                 }
             }
+            v.alpha = 0f
             wm.addView(v, lp)
+            v.animate().alpha(1f).setDuration(400).start()
             v.requestFocus()
             overlay = v
             overlayKind = kind

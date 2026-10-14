@@ -5,148 +5,192 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Study Mirror</title>
 <style>
-  :root {
-    --paper: #e9eff2;
-    --ink: #14283a;
-    --mute: #5d7384;
-    --focus: #2b4c7e;
-    --rest: #1f5a43;
-    --line: #c9d6dd;
-    --card: #f7fafb;
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px;
-    background: var(--paper); color: var(--ink);
-    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
-  }
-  main { width: 100%; max-width: 440px; }
-  .block { text-align: center; padding: 12px 0 28px; }
-  .block .n { font-family: Georgia, "Times New Roman", serif; font-size: 112px; line-height: 1; font-weight: 700; }
-  .block .of { font-size: 18px; color: var(--mute); margin-top: 6px; }
-  .stepper { display: inline-flex; gap: 8px; margin-top: 14px; }
-  .stepper button { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line); background: var(--card); color: var(--ink); font-size: 18px; cursor: pointer; }
-  .actions { display: grid; gap: 12px; }
-  .actions button.main {
-    border: 0; border-radius: 14px; padding: 18px; font-size: 18px; font-weight: 600; cursor: pointer; color: #fff;
-  }
-  #start { background: var(--focus); }
-  #brk { background: var(--rest); }
-  #end { background: transparent; color: var(--mute); border: 1px solid var(--line); border-radius: 14px; padding: 14px; font-size: 15px; cursor: pointer; }
-  .row { display: flex; gap: 10px; align-items: center; }
-  .row label { font-size: 14px; color: var(--mute); }
-  input { border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 10px; padding: 10px 12px; font-size: 15px; width: 100%; }
-  #mins { width: 72px; }
-  .pair { margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--line); display: grid; gap: 10px; }
-  .status { margin-top: 18px; font-size: 14px; color: var(--mute); min-height: 20px; }
-  .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #b0bcc4; margin-right: 8px; }
-  .dot.on { background: var(--rest); }
-  button:focus-visible, input:focus-visible { outline: 3px solid #7aa7d9; outline-offset: 2px; }
+  :root { --bg:#0e1a24; --card:#15242f; --ink:#e8f1ec; --mute:#8aa0b0; --line:#243847; --accent:#7fd1ae; --glow:rgba(127,209,174,.18); }
+  body[data-mode="focus"] { --bg:#0d1830; --accent:#7aa7ff; --glow:rgba(122,167,255,.2); }
+  body[data-mode="break"] { --bg:#0e2a20; --accent:#7fd1ae; --glow:rgba(127,209,174,.22); }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; display:grid; place-items:center; padding:24px; color:var(--ink);
+    background:radial-gradient(ellipse at 50% 20%, var(--glow), transparent 60%), var(--bg);
+    font-family:"Segoe UI",system-ui,sans-serif; transition:background .8s ease; }
+  main { width:100%; max-width:420px; animation:rise .7s ease both; }
+  @keyframes rise { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:none; } }
+  .pill { display:flex; align-items:center; justify-content:center; gap:8px; font-size:13px; color:var(--mute); margin-bottom:18px; }
+  .dot { width:9px; height:9px; border-radius:50%; background:#51606b; transition:background .4s; }
+  .dot.on { background:var(--accent); animation:pulse 2s infinite; }
+  @keyframes pulse { 0%,100% { box-shadow:0 0 0 0 var(--glow); } 50% { box-shadow:0 0 0 8px transparent; } }
+  .ringwrap { position:relative; width:280px; height:280px; margin:0 auto; }
+  svg { width:100%; height:100%; transform:rotate(-90deg); }
+  .track { stroke:var(--line); fill:none; stroke-width:8; }
+  .bar { stroke:var(--accent); fill:none; stroke-width:8; stroke-linecap:round; stroke-dasharray:691; stroke-dashoffset:0; transition:stroke-dashoffset 1s linear, stroke .6s; filter:drop-shadow(0 0 8px var(--accent)); }
+  .center { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  .label { font-size:13px; letter-spacing:.14em; text-transform:uppercase; color:var(--mute); }
+  .time { font-family:Georgia,serif; font-size:64px; font-weight:700; line-height:1.05; font-variant-numeric:tabular-nums; }
+  .blk { font-size:15px; color:var(--accent); margin-top:4px; }
+  .stepper { display:flex; justify-content:center; gap:10px; margin:14px 0 22px; align-items:center; font-size:13px; color:var(--mute); }
+  .stepper button { width:32px; height:32px; border-radius:50%; border:1px solid var(--line); background:var(--card); color:var(--ink); cursor:pointer; font-size:16px; }
+  .acts { display:grid; gap:10px; }
+  .row { display:flex; gap:10px; align-items:center; }
+  button.main { border:0; border-radius:14px; padding:16px; font-size:17px; font-weight:600; cursor:pointer; color:#07121a; background:var(--accent); transition:transform .15s, filter .2s; flex:1; }
+  button.main:hover { filter:brightness(1.1); transform:translateY(-1px); }
+  button.main:active { transform:scale(.98); }
+  button.alt { background:var(--card); color:var(--ink); border:1px solid var(--line); }
+  button.ghost { background:none; border:1px solid var(--line); color:var(--mute); border-radius:14px; padding:12px; cursor:pointer; font-size:14px; }
+  input { background:var(--card); border:1px solid var(--line); color:var(--ink); border-radius:10px; padding:10px 12px; font-size:15px; width:100%; }
+  input.sm { width:64px; text-align:center; }
+  .sub { font-size:13px; color:var(--mute); white-space:nowrap; }
+  .chips { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:22px; }
+  .chip { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:10px 4px; text-align:center; }
+  .chip b { display:block; font-size:22px; font-family:Georgia,serif; }
+  .chip span { font-size:11px; color:var(--mute); }
+  .notes { margin-top:18px; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px 14px; font-size:14px; color:var(--mute); }
+  .notes b { color:var(--ink); font-size:13px; letter-spacing:.08em; text-transform:uppercase; }
+  .notes div { margin-top:6px; animation:rise .4s ease both; }
+  details { margin-top:20px; font-size:14px; color:var(--mute); }
+  summary { cursor:pointer; margin-bottom:10px; }
+  details .row { margin-bottom:10px; }
+  :focus-visible { outline:3px solid var(--accent); outline-offset:2px; }
 </style>
 </head>
-<body>
+<body data-mode="idle">
 <main>
-  <section class="block" aria-live="polite">
-    <div class="n" id="n">1</div>
-    <div class="of">block <span id="nOf">1</span> of <span id="tot">5</span></div>
-    <div class="stepper">
-      <button id="bm" aria-label="Previous block">&minus;</button>
-      <button id="bp" aria-label="Next block">+</button>
-    </div>
-  </section>
+  <div class="pill"><span class="dot" id="dot"></span><span id="msg">Enter your phone's address and code below.</span></div>
 
-  <section class="actions">
-    <button class="main" id="start">Start block</button>
+  <div class="ringwrap">
+    <svg viewBox="0 0 240 240"><circle class="track" cx="120" cy="120" r="110"/><circle class="bar" id="bar" cx="120" cy="120" r="110"/></svg>
+    <div class="center" aria-live="polite">
+      <div class="label" id="label">Ready</div>
+      <div class="time" id="time">--:--</div>
+      <div class="blk" id="blk">Block 1 of 5</div>
+    </div>
+  </div>
+
+  <div class="stepper">
+    <button id="bm" aria-label="Previous block">&minus;</button>
+    <span>block</span>
+    <button id="bp" aria-label="Next block">+</button>
+  </div>
+
+  <div class="acts">
     <div class="row">
-      <button class="main" id="brk" style="flex:1">Start break</button>
-      <input id="mins" type="number" min="1" max="60" value="10" aria-label="Break minutes">
-      <label for="mins">min</label>
+      <button class="main" id="start">Start block</button>
+      <input class="sm" id="fmin" type="number" min="1" max="180" value="50" aria-label="Block minutes">
+      <span class="sub">min</span>
     </div>
-    <button id="end">End session</button>
-  </section>
+    <div class="row">
+      <button class="main alt" id="brk">Start break</button>
+      <input class="sm" id="bmin" type="number" min="1" max="60" value="10" aria-label="Break minutes">
+      <span class="sub">min</span>
+    </div>
+    <button class="ghost" id="end">End session</button>
+  </div>
 
-  <div class="status"><span class="dot" id="dot"></span><span id="msg">Enter your phone's address and code below.</span></div>
+  <div class="chips">
+    <div class="chip"><b id="s1">0</b><span>blocks</span></div>
+    <div class="chip"><b id="s2">0</b><span>escapes stopped</span></div>
+    <div class="chip"><b id="s3">0</b><span>urges</span></div>
+    <div class="chip"><b id="s4">0</b><span>extensions</span></div>
+  </div>
 
-  <section class="pair">
-    <div class="row"><input id="ip" placeholder="Phone address, e.g. 192.168.1.5"></div>
+  <div class="notes" id="notes" hidden><b>Parked on the phone</b><div id="nlist"></div></div>
+
+  <details id="setup" open>
+    <summary>Phone connection</summary>
+    <div class="row"><input id="ip" placeholder="Phone address, e.g. 192.168.1.7"></div>
     <div class="row"><input id="code" placeholder="Pairing code from the phone app" inputmode="numeric"></div>
-    <div class="row"><label for="totIn">Blocks today</label><input id="totIn" type="number" min="1" max="12" value="5" style="width:80px"></div>
-  </section>
+    <div class="row"><span class="sub">Blocks today</span><input class="sm" id="tot" type="number" min="1" max="12" value="5"></div>
+  </details>
 </main>
 
 <script>
 const $ = id => document.getElementById(id);
+const C = 691;
 let block = parseInt(localStorage.sm_block) || 1;
 let total = parseInt(localStorage.sm_total) || 5;
-$('ip').value = localStorage.sm_ip || '';
-$('code').value = localStorage.sm_code || '';
-$('totIn').value = total;
+let mode = 'idle', endAt = 0, dur = 0, doneBeeped = false;
+$('ip').value = localStorage.sm_ip || ''; $('code').value = localStorage.sm_code || '';
+$('fmin').value = localStorage.sm_fmin || 50; $('bmin').value = localStorage.sm_bmin || 10; $('tot').value = total;
+if ($('ip').value && $('code').value) $('setup').open = false;
 
+const fmt = s => Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+function say(t, on) { $('msg').textContent = t; $('dot').className = 'dot' + (on ? ' on' : ''); }
 function paint() {
-  $('n').textContent = block;
-  $('nOf').textContent = block;
-  $('tot').textContent = total;
+  $('blk').textContent = 'Block ' + block + ' of ' + total;
   $('start').textContent = 'Start block ' + block;
   localStorage.sm_block = block; localStorage.sm_total = total;
 }
-function say(text, on) { $('msg').textContent = text; $('dot').className = 'dot' + (on ? ' on' : ''); }
+function setMode(m, mins) {
+  mode = m; document.body.dataset.mode = m;
+  $('label').textContent = m === 'focus' ? 'Focus' : m === 'break' ? 'Break' : 'Ready';
+  dur = (mins || 0) * 60; endAt = dur ? Date.now() + dur * 1000 : 0; doneBeeped = false;
+  $('bar').style.transition = 'none'; $('bar').style.strokeDashoffset = 0;
+  void $('bar').getBoundingClientRect(); $('bar').style.transition = '';
+}
+function beep() {
+  try { const a = new AudioContext(), o = a.createOscillator(), g = a.createGain();
+    o.connect(g); g.connect(a.destination); o.frequency.value = 660; g.gain.value = .12;
+    o.start(); o.stop(a.currentTime + .35); } catch (e) {}
+}
+setInterval(() => {
+  if (!endAt) { $('time').textContent = '--:--'; document.title = 'Study Mirror'; return; }
+  const left = Math.max(0, Math.round((endAt - Date.now()) / 1000));
+  $('time').textContent = fmt(left);
+  document.title = fmt(left) + ' · ' + (mode === 'focus' ? 'Focus' : 'Break');
+  $('bar').style.strokeDashoffset = C * (1 - left / dur);
+  if (left === 0 && !doneBeeped) {
+    doneBeeped = true; beep();
+    say(mode === 'focus' ? 'Block done. Take your break.' : 'Break over. Back to it.', true);
+  }
+}, 250);
 
 function baseUrl() {
   let ip = $('ip').value.trim();
-  if (!ip) throw new Error('Enter the phone address first.');
+  if (!ip) throw new Error('no ip');
   if (!ip.includes(':')) ip += ':8080';
-  localStorage.sm_ip = $('ip').value.trim();
-  localStorage.sm_code = $('code').value.trim();
+  localStorage.sm_ip = $('ip').value.trim(); localStorage.sm_code = $('code').value.trim();
   return 'http://' + ip;
 }
-
 async function call(cmd, params = {}) {
   const q = new URLSearchParams(Object.assign({ t: $('code').value.trim() }, params)).toString();
   const url = baseUrl() + '/' + cmd + '?' + q;
-  try {
-    const r = await fetch(url);
-    return await r.json();
-  } catch (e) {
-    await fetch(url, { mode: 'no-cors' });   // fallback: command still arrives, reply is hidden
-    return null;
-  }
+  try { return await (await fetch(url)).json(); }
+  catch (e) { await fetch(url, { mode: 'no-cors' }); return null; }
 }
-
-async function run(cmd, params, okText) {
+async function run(cmd, params, ok) {
   try {
     const r = await call(cmd, params);
-    if (r && r.error) { say('Phone says: ' + r.error, false); return; }
-    say(okText, true);
-  } catch (e) {
-    say("Can't reach the phone. Same Wi-Fi? Is Study Mirror turned on?", false);
-  }
+    if (r && r.error) { say('Phone says: ' + r.error, false); return false; }
+    say(ok, true); return true;
+  } catch (e) { say("Can't reach the phone. Same Wi-Fi? Is Study Mirror on?", false); return false; }
 }
+const num = (id, d) => Math.max(1, parseInt($(id).value) || d);
 
-$('start').onclick = () => run('focus', { block, total }, 'Focus started: block ' + block);
-$('brk').onclick = async () => {
-  const m = Math.max(1, parseInt($('mins').value) || 10);
-  await run('break', { min: m }, 'Break started: ' + m + ' minutes');
-  if (block < 99) { block += 1; paint(); }   // the phone also moves to the next block after the break
+$('start').onclick = async () => {
+  const m = num('fmin', 50); localStorage.sm_fmin = m;
+  if (await run('focus', { block, total }, 'Focus started: block ' + block)) setMode('focus', m);
 };
-$('end').onclick = () => run('end', {}, 'Session ended');
+$('brk').onclick = async () => {
+  const m = num('bmin', 10); localStorage.sm_bmin = m;
+  if (await run('break', { min: m }, 'Break started: ' + m + ' minutes')) { setMode('break', m); block++; paint(); }
+};
+$('end').onclick = async () => { if (await run('end', {}, 'Session ended')) setMode('idle', 0); };
 $('bm').onclick = () => { if (block > 1) block--; paint(); };
 $('bp').onclick = () => { block++; paint(); };
-$('totIn').onchange = () => { total = Math.max(1, parseInt($('totIn').value) || 5); paint(); };
+$('tot').onchange = () => { total = num('tot', 5); paint(); };
 
 async function poll() {
   if (!$('ip').value.trim() || !$('code').value.trim()) return;
   try {
     const r = await call('state');
-    if (r && r.mode) {
-      const where = r.mode === 'IDLE' ? 'idle' : r.mode.toLowerCase() + ', block ' + r.block;
-      say('Phone connected (' + where + ')', true);
-    }
-  } catch (e) {
-    say("Can't reach the phone. Same Wi-Fi? Is Study Mirror turned on?", false);
-  }
+    if (!r || !r.mode) return;
+    if (r.mode === 'IDLE' && mode !== 'idle') setMode('idle', 0);
+    say('Phone connected (' + (r.mode === 'IDLE' ? 'idle' : r.mode.toLowerCase() + ', block ' + r.block) + ')', true);
+    if (r.stats) { $('s1').textContent = r.stats.blocks; $('s2').textContent = r.stats.blocked; $('s3').textContent = r.stats.urges; $('s4').textContent = r.stats.extensions; }
+    const n = r.notes || [];
+    $('notes').hidden = !n.length;
+    $('nlist').replaceChildren(...n.map(t => Object.assign(document.createElement('div'), { textContent: t })));
+  } catch (e) { say("Can't reach the phone. Same Wi-Fi? Is Study Mirror on?", false); }
 }
-paint();
-setInterval(poll, 5000);
+paint(); poll(); setInterval(poll, 3000);
 </script>
 </body>
 </html>
