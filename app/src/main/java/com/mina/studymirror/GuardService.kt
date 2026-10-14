@@ -57,6 +57,8 @@ class GuardService : AccessibilityService() {
     private var overlayKind: Kind? = null
     private var countdown: TextView? = null
     private var server: ServerSocket? = null
+    @Volatile var port = 0
+    @Volatile var serverError = "not started yet"
 
     private val focusLines = listOf(
         "You're doing very good. Stay with it.",
@@ -389,21 +391,44 @@ class GuardService : AccessibilityService() {
 
     // -------------------------------------------------------------- HTTP server
 
+    fun ensureServer() {
+        if (server == null) startServer()
+    }
+
     private fun startServer() {
         if (server != null) return
         thread(isDaemon = true) {
+            var found: ServerSocket? = null
+            var lastErr = ""
+            for (p in 8080..8089) {
+                try {
+                    val t = ServerSocket()
+                    t.reuseAddress = true
+                    t.bind(InetSocketAddress(p))
+                    found = t
+                    port = p
+                    break
+                } catch (e: Exception) {
+                    lastErr = "port $p: ${e.message}"
+                }
+            }
+            val sock = found
+            if (sock == null) {
+                serverError = lastErr
+                return@thread
+            }
+            server = sock
+            serverError = ""
             try {
-                val s = ServerSocket()
-                s.reuseAddress = true
-                s.bind(InetSocketAddress(PORT))
-                server = s
-                while (!s.isClosed) {
-                    val c = s.accept()
+                while (!sock.isClosed) {
+                    val c = sock.accept()
                     thread(isDaemon = true) { handle(c) }
                 }
             } catch (e: Exception) {
-                server = null
+                serverError = "stopped: ${e.message}"
             }
+            server = null
+            port = 0
         }
     }
 

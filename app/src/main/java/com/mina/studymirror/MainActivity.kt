@@ -79,10 +79,22 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
-        val on = GuardService.instance != null
-        status.text = if (on) "Status: running" else "Status: not running. Do step 1 below."
+        GuardService.instance?.ensureServer()
+        refresh()
+        status.postDelayed({ refresh() }, 1000)
+    }
+
+    private fun refresh() {
+        val s = GuardService.instance
+        status.text = when {
+            s == null -> "Status: Accessibility service is NOT running. Do step 1 below (turn it off and on again)."
+            s.port == 0 && s.serverError.isNotEmpty() -> "Status: service is on, but the connection server failed: ${s.serverError}"
+            s.port == 0 -> "Status: starting..."
+            else -> "Status: running. Listening on port ${s.port}"
+        }
+        val port = if (s != null && s.port != 0) s.port else GuardService.PORT
         info.text = "Pairing code: ${Prefs.token(this)}\n\nPhone address (type this into the laptop page):\n" +
-            addresses().joinToString("\n") { "$it:${GuardService.PORT}" }
+            addresses().joinToString("\n") { "$it:$port" }
     }
 
     private fun button(label: String, onClick: () -> Unit): Button {
