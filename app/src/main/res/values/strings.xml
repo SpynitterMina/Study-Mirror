@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="service_desc">Notices when you open a distracting app during a study session or break, and shows your session screens. It does not read screen content.</string>
+</resources>
