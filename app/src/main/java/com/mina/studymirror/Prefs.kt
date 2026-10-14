@@ -45,6 +45,18 @@ object Prefs {
 
     fun count(c: Context, k: String): Int = sp(c).getInt(day() + "_" + k, 0)
 
+    // ---- rules: block-list or allow-only
+    fun allowOnly(c: Context) = sp(c).getBoolean("allowOnly", false)
+    fun setAllowOnly(c: Context, v: Boolean) { sp(c).edit().putBoolean("allowOnly", v).apply() }
+    fun allowed(c: Context): Set<String> = HashSet(sp(c).getStringSet("allowed", emptySet()) ?: emptySet())
+    fun setAllowed(c: Context, s: Set<String>) { sp(c).edit().putStringSet("allowed", HashSet(s)).apply() }
+
+    // ---- remembered break choice and the laptop we paired with
+    fun breakChoice(c: Context): String = sp(c).getString("choice", "") ?: ""
+    fun setBreakChoice(c: Context, v: String) { sp(c).edit().putString("choice", v).apply() }
+    fun laptop(c: Context): String = sp(c).getString("laptop", "") ?: ""
+    fun setLaptop(c: Context, v: String) { sp(c).edit().putString("laptop", v).apply() }
+
     // ---- parked notes (newest first)
     fun notes(c: Context): List<String> =
         (sp(c).getString("notes", "") ?: "").split("\u0001").filter { it.isNotBlank() }

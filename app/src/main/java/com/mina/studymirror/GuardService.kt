@@ -1,6 +1,11 @@
 package com.mina.studymirror
 
 import android.accessibilityservice.AccessibilityService
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.pm.ApplicationInfo
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
@@ -47,10 +52,16 @@ class GuardService : AccessibilityService() {
 
     private val ui = Handler(Looper.getMainLooper())
 
-    @Volatile private var mode = Mode.IDLE
-    @Volatile private var block = 1
-    @Volatile private var total = 0
-    private var breakEndAt = 0L
+    @Volatile var mode = Mode.IDLE
+    @Volatile var block = 1
+    @Volatile var total = 0
+    @Volatile var breakEndAt = 0L
+    @Volatile var breakDurMs = 0L
+    @Volatile var focusEndAt = 0L
+    @Volatile var focusDurMs = 0L
+    @Volatile var task = ""
+    @Volatile var lastContact = 0L
+    private var focusStartWall = 0L
     private var endingShown = false
     private var lastBlockAt = 0L
     private var extUsed = false
@@ -75,6 +86,9 @@ class GuardService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
+        val ch = NotificationChannel("session", "Study session", NotificationManager.IMPORTANCE_LOW)
+        ch.setShowBadge(false)
+        getSystemService(NotificationManager::class.java).createNotificationChannel(ch)
         startServer()
     }
 
@@ -83,6 +97,7 @@ class GuardService : AccessibilityService() {
     override fun onDestroy() {
         instance = null
         ui.removeCallbacksAndMessages(null)
+        try { getSystemService(NotificationManager::class.java).cancel(1) } catch (e: Exception) {}
         removeOverlay()
         try { server?.close() } catch (e: Exception) {}
         server = null
@@ -96,13 +111,70 @@ class GuardService : AccessibilityService() {
         if (mode == Mode.IDLE) return
         val pkg = e.packageName?.toString() ?: return
         if (pkg == packageName) return
-        if (!Prefs.escape(this).contains(pkg)) return
+        if (!isBlocked(pkg)) return
         val now = SystemClock.elapsedRealtime()
         if (now - lastBlockAt < 1500) return
         lastBlockAt = now
         Prefs.bump(this, "blocked")
         performGlobalAction(GLOBAL_ACTION_HOME)
         if (overlay == null) showBlocked()
+    }
+
+    private val breakApps = setOf("com.spotify.music", "com.anghami", "com.google.android.apps.youtube.music")
+
+    private fun isBlocked(pkg: String): Boolean {
+        if (mode == Mode.BREAK && breakApps.contains(pkg)) return false
+        if (!Prefs.allowOnly(this)) return Prefs.escape(this).contains(pkg)
+        return !Prefs.allowed(this).contains(pkg) && !isEssential(pkg)
+    }
+
+    /** Core system apps (phone, keyboard, launcher, system UI) are never closed in allow-only mode. */
+    private fun isEssential(pkg: String): Boolean {
+        if (pkg == "com.android.systemui" || pkg.contains("inputmethod") || pkg.contains("keyboard")) return true
+        return try {
+            val f = packageManager.getApplicationInfo(pkg, 0).flags
+            (f and ApplicationInfo.FLAG_SYSTEM) != 0 && (f and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) == 0
+        } catch (e: Exception) { true }
+    }
+
+    // ------------------------------------------------------------ notification
+    private fun updateNotification() {
+        val nm = getSystemService(NotificationManager::class.java)
+        val wall = System.currentTimeMillis()
+        val mono = SystemClock.elapsedRealtime()
+        when (mode) {
+            Mode.IDLE -> nm.cancel(1)
+            Mode.BREAK -> {
+                val pick = Prefs.breakChoice(this)
+                post("Break" + if (pick.isNotEmpty()) " \u00B7 $pick" else "", "Back to ${label(block + 1)} when it ends", wall + (breakEndAt - mono), true)
+            }
+            Mode.FOCUS -> {
+                val line = if (task.isNotEmpty()) task else "You're doing very well"
+                if (focusEndAt > 0) post("Focus \u00B7 ${label(block)}", line, wall + (focusEndAt - mono), true)
+                else post("Focus \u00B7 ${label(block)}", line, focusStartWall, false)
+            }
+        }
+    }
+
+    private fun post(title: String, text: String, whenMs: Long, down: Boolean) {
+        try {
+            val pi = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
+            val b = Notification.Builder(this, "session")
+                .setSmallIcon(R.drawable.ic_stat).setContentTitle(title).setContentText(text)
+                .setOngoing(true).setOnlyAlertOnce(true).setContentIntent(pi)
+                .setCategory(Notification.CATEGORY_PROGRESS)
+                .setWhen(whenMs).setUsesChronometer(true).setChronometerCountDown(down)
+            getSystemService(NotificationManager::class.java).notify(1, b.build())
+        } catch (e: Exception) {}
+    }
+
+    fun leftMs(): Long {
+        val now = SystemClock.elapsedRealtime()
+        return when {
+            mode == Mode.BREAK -> (breakEndAt - now).coerceAtLeast(0L)
+            mode == Mode.FOCUS && focusEndAt > 0 -> (focusEndAt - now).coerceAtLeast(0L)
+            else -> -1L
+        }
     }
 
     // ----------------------------------------------------------------- commands
@@ -113,7 +185,9 @@ class GuardService : AccessibilityService() {
             "focus" -> {
                 val b = q["block"]?.toIntOrNull() ?: 1
                 val t = q["total"]?.toIntOrNull() ?: 0
-                ui.post { cmdFocus(b, t) }
+                val sec = q["sec"]?.toIntOrNull() ?: 0
+                val tk = q["task"] ?: ""
+                ui.post { cmdFocus(b, t, sec, tk) }
             }
             "break" -> {
                 val secs = q["sec"]?.toIntOrNull() ?: ((q["min"]?.toIntOrNull() ?: 10) * 60)
@@ -144,13 +218,18 @@ class GuardService : AccessibilityService() {
 
     private fun label(n: Int) = if (total > 0) "Block $n of $total" else "Block $n"
 
-    private fun cmdFocus(b: Int, t: Int) {
+    private fun cmdFocus(b: Int, t: Int, sec: Int, tk: String) {
         ui.removeCallbacks(tick)
         removeOverlay()
         mode = Mode.FOCUS
         block = b
         total = t
         endingShown = false
+        task = tk
+        focusDurMs = sec * 1000L
+        focusEndAt = if (sec > 0) SystemClock.elapsedRealtime() + sec * 1000L else 0L
+        focusStartWall = System.currentTimeMillis()
+        updateNotification()
         Toast.makeText(this, "Focus: ${label(block)}", Toast.LENGTH_SHORT).show()
         buzz()
     }
@@ -161,6 +240,9 @@ class GuardService : AccessibilityService() {
         extUsed = false
         Prefs.bump(this, "blocks")
         breakEndAt = endAt
+        breakDurMs = seconds * 1000L
+        Prefs.setBreakChoice(this, "")
+        updateNotification()
         endingShown = false
         showBreakMenu()
         buzz()
@@ -172,6 +254,8 @@ class GuardService : AccessibilityService() {
         removeOverlay()
         mode = Mode.IDLE
         endingShown = false
+        task = ""
+        updateNotification()
         Toast.makeText(this, "Session ended. Phone is free.", Toast.LENGTH_SHORT).show()
     }
 
@@ -201,11 +285,14 @@ class GuardService : AccessibilityService() {
         mode = Mode.FOCUS
         block += 1
         endingShown = false
+        focusEndAt = 0L
+        focusStartWall = System.currentTimeMillis()
+        updateNotification()
         buzz()
         val r = box(Color.parseColor("#14283A"))
         r.addView(tv("🎯", 56f))
         r.addView(tv("Back to ${label(block)}", 28f, bold = true))
-        r.addView(tv(focusLines.random(), 18f))
+        r.addView(tv(Quotes.line(), 18f))
         r.addView(btn("Let's go") { goHomeAndClose() })
         show(Kind.BACK, r)
         val v = overlay
@@ -230,6 +317,8 @@ class GuardService : AccessibilityService() {
         tip.addView(btn("Got it, phone away") { goHomeAndClose() })
 
         fun choose(title: String, msg: String) {
+            Prefs.setBreakChoice(this, title.substringAfter(" "))
+            updateNotification()
             menu.visibility = View.GONE
             tipText.text = "$title\n\n$msg"
             tip.visibility = View.VISIBLE
@@ -287,7 +376,7 @@ class GuardService : AccessibilityService() {
         } else {
             r.addView(tv("🎯", 56f))
             r.addView(tv("You're in ${label(block)}", 26f, bold = true))
-            r.addView(tv(focusLines.random(), 17f))
+            r.addView(tv(Quotes.line(), 17f))
             r.addView(btn("Back to focus") { goHomeAndClose() })
             r.addView(btn("I feel the urge to escape") { showUrge() })
         }
@@ -362,6 +451,8 @@ class GuardService : AccessibilityService() {
                 Prefs.bump(this, "extensions")
                 Prefs.addNote(this, nowText() + "  extended break: " + why)
                 breakEndAt += 300_000L - hold
+                breakDurMs += 300_000L
+                updateNotification()
                 endingShown = false
                 showBreakMenu()
             }
@@ -393,6 +484,8 @@ class GuardService : AccessibilityService() {
     }
 
     private fun openMusic() {
+        Prefs.setBreakChoice(this, "Music")
+        updateNotification()
         val apps = listOf("com.spotify.music", "com.anghami", "com.google.android.apps.youtube.music")
         for (p in apps) {
             val i = packageManager.getLaunchIntentForPackage(p) ?: continue
@@ -563,7 +656,7 @@ class GuardService : AccessibilityService() {
             val path = target.substringBefore("?")
             val q = HashMap<String, String>()
             target.substringAfter("?", "").split("&").forEach { kv ->
-                if (kv.contains("=")) q[kv.substringBefore("=")] = kv.substringAfter("=")
+                if (kv.contains("=")) q[kv.substringBefore("=")] = java.net.URLDecoder.decode(kv.substringAfter("="), "UTF-8")
             }
 
             var status = "200 OK"
@@ -576,6 +669,7 @@ class GuardService : AccessibilityService() {
                 status = "403 Forbidden"
                 body = "{\"error\":\"wrong code\"}"
             } else {
+                lastContact = SystemClock.elapsedRealtime()
                 body = command(path.trimStart('/'), q)
             }
 
