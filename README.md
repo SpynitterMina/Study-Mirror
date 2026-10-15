@@ -6,7 +6,7 @@
 
 **A focus companion that links your phone and your laptop, so studying blocks distractions instead of fighting them.**
 
-[![Latest release](https://img.shields.io/github/v/release/YOUR-USERNAME/StudyMirror?label=download&style=for-the-badge&color=4f8cf6)](https://github.com/SpynitterMina/Study-Mirror/releases/latest)
+[![Latest release](https://img.shields.io/github/v/release/SpynitterMina/Study-Mirror?label=download&style=for-the-badge&color=4f8cf6)](https://github.com/SpynitterMina/Study-Mirror/releases/latest)
 ![Platforms](https://img.shields.io/badge/phone-Android-3ecf8e?style=for-the-badge)
 ![Platforms](https://img.shields.io/badge/desktop-Windows-4f8cf6?style=for-the-badge)
 [![License](https://img.shields.io/github/license/SpynitterMina/Study-Mirror?style=for-the-badge)](LICENSE)
