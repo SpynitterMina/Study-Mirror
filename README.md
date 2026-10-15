@@ -6,10 +6,10 @@
 
 **A focus companion that links your phone and your laptop, so studying blocks distractions instead of fighting them.**
 
-[![Latest release](https://img.shields.io/github/v/release/YOUR-USERNAME/StudyMirror?label=download&style=for-the-badge&color=4f8cf6)](https://github.com/YOUR-USERNAME/StudyMirror/releases/latest)
+[![Latest release](https://img.shields.io/github/v/release/YOUR-USERNAME/StudyMirror?label=download&style=for-the-badge&color=4f8cf6)](https://github.com/SpynitterMina/Study-Mirror/releases/latest)
 ![Platforms](https://img.shields.io/badge/phone-Android-3ecf8e?style=for-the-badge)
 ![Platforms](https://img.shields.io/badge/desktop-Windows-4f8cf6?style=for-the-badge)
-[![License](https://img.shields.io/github/license/YOUR-USERNAME/StudyMirror?style=for-the-badge)](LICENSE)
+[![License](https://img.shields.io/github/license/SpynitterMina/Study-Mirror?style=for-the-badge)](LICENSE)
 
 [Download](#-download) · [Install](#-installation) · [How it works](#-how-it-works) · [Features](#-features) · [Troubleshooting](#-troubleshooting)
 
@@ -85,7 +85,7 @@ When you press **Start Block** on the laptop, your phone enters focus mode too. 
 
 ## ⬇️ Download
 
-Go to the **[Releases page](https://github.com/YOUR-USERNAME/StudyMirror/releases/latest)** and download both files from the latest version:
+Go to the **[Releases page](https://github.com/SpynitterMina/Study-Mirror/releases/latest)** and download both files from the latest version:
 
 | For | File | Notes |
 |---|---|---|
@@ -100,7 +100,7 @@ Go to the **[Releases page](https://github.com/YOUR-USERNAME/StudyMirror/release
 
 ### 📱 On your phone (Android)
 
-1. Open the **[Releases page](https://github.com/YOUR-USERNAME/StudyMirror/releases/latest)** on your phone and tap the `.apk` file to download it.
+1. Open the **[Releases page](https://github.com/SpynitterMina/Study-Mirror/releases/latest)** on your phone and tap the `.apk` file to download it.
 2. When the download finishes, tap **Open** (or open it from your *Downloads* folder).
 3. Android will say it blocks installs from this source. Tap **Settings** and turn on **Allow from this source**, then go back.
 4. Tap **Install**. If Play Protect shows a warning, tap **More details → Install anyway**. This appears because the app is not on the Play Store.
@@ -108,7 +108,7 @@ Go to the **[Releases page](https://github.com/YOUR-USERNAME/StudyMirror/release
 
 ### 💻 On your laptop (Windows)
 
-1. Download `Study Mirror Control` (`.exe`) from the **[Releases page](https://github.com/YOUR-USERNAME/StudyMirror/releases/latest)**.
+1. Download `Study Mirror Control` (`.exe`) from the **[Releases page](https://github.com/SpynitterMina/Study-Mirror/releases/latest)**.
 2. Put it anywhere you like, for example your Desktop.
 3. Double-click it. If Windows SmartScreen says "Windows protected your PC", click **More info → Run anyway**.
 4. When Windows asks about network access, choose **Private networks** and click **Allow**. This lets your phone talk to the laptop.
@@ -185,7 +185,7 @@ StudyMirror/
 
 ## 🤝 Contributing
 
-Ideas and bug reports are welcome. Open an [issue](https://github.com/YOUR-USERNAME/StudyMirror/issues) and describe what you saw.
+Ideas and bug reports are welcome. Open an [issue](https://github.com/SpynitterMina/StudyMirror/issues) and describe what you saw.
 
 ## 📄 License
 
@@ -194,5 +194,5 @@ Released under the MIT License. See [LICENSE](LICENSE).
 ---
 
 <div align="center">
-Built by <a href="https://github.com/YOUR-USERNAME">Mina</a> · If Study Mirror helps you focus, give it a ⭐
+Built by <a href="https://github.com/SpynitterMina">Mina</a> · If Study Mirror helps you focus, give it a ⭐
 </div>
