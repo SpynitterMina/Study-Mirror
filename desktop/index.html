@@ -3,282 +3,1615 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Study Mirror</title>
+<title>Study Mirror &middot; Focus Companion</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <style>
-  :root { --bg:#0e1a24; --card:#15242f; --ink:#e8f1ec; --mute:#8aa0b0; --line:#243847; --acc:#7aa7ff; }
-  body[data-mode="break"] { --bg:#0e2a20; --acc:#7fd1ae; }
-  body[data-mode="idle"] { --bg:#0e1a24; }
-  * { box-sizing:border-box; user-select:none; }
-  html,body { height:100%; margin:0; overflow:hidden; }
-  body { display:flex; flex-direction:column; color:var(--ink); font-family:"Segoe UI",system-ui,sans-serif;
-    background:radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--acc) 16%, transparent), transparent 60%), var(--bg); transition:background .8s; }
-  .bar { display:flex; align-items:center; gap:6px; padding:8px 10px 8px 16px; -webkit-app-region:drag; font-size:13px; color:var(--mute); }
-  .bar .t { flex:1; letter-spacing:.12em; text-transform:uppercase; font-size:11px; }
-  .dot { width:8px; height:8px; border-radius:50%; background:#51606b; margin-right:6px; display:inline-block; }
-  .dot.on { background:var(--acc); }
-  .bar button, .wc { -webkit-app-region:no-drag; }
-  .tb { background:none; border:0; color:var(--mute); padding:5px 9px; border-radius:8px; cursor:pointer; font-size:13px; }
-  .tb:hover { background:var(--card); color:var(--ink); }
-  .tb.on { color:var(--acc); }
-  .stage { flex:1; overflow:auto; padding:0 24px 20px; display:flex; flex-direction:column; align-items:center; }
-  .task { width:100%; background:none; border:0; border-bottom:1px solid var(--line); color:var(--ink); text-align:center; font-size:20px; padding:10px 4px; font-family:Georgia,serif; user-select:text; }
-  .task:focus { outline:none; border-color:var(--acc); }
-  .ringwrap { position:relative; width:min(300px, 72vw); aspect-ratio:1; margin:22px 0 14px; }
-  svg { width:100%; height:100%; transform:rotate(-90deg); }
-  .track { stroke:var(--line); fill:none; stroke-width:7; }
-  .ring { stroke:var(--acc); fill:none; stroke-width:7; stroke-linecap:round; stroke-dasharray:691; filter:drop-shadow(0 0 7px var(--acc)); transition:stroke-dashoffset .25s linear, stroke .6s; }
-  .c { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
-  .lbl { font-size:12px; letter-spacing:.16em; text-transform:uppercase; color:var(--mute); }
-  .time { font-family:Georgia,serif; font-size:clamp(44px, 14vmin, 84px); font-weight:700; font-variant-numeric:tabular-nums; line-height:1.05; }
-  .blk { color:var(--acc); font-size:14px; margin-top:2px; }
-  .pick { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
-  .pick button.rnd { width:34px; height:34px; border-radius:50%; border:1px solid var(--line); background:var(--card); color:var(--ink); font-size:18px; cursor:pointer; }
-  .pick input { width:62px; text-align:center; font-size:22px; font-family:Georgia,serif; background:none; border:0; border-bottom:1px solid var(--line); color:var(--ink); user-select:text; }
-  .pick input:focus { outline:none; border-color:var(--acc); }
-  .chips { display:flex; gap:8px; margin:6px 0 16px; }
-  .chip { border:1px solid var(--line); background:var(--card); color:var(--mute); padding:5px 12px; border-radius:20px; cursor:pointer; font-size:13px; }
-  .chip.sel, .chip:hover { color:var(--ink); border-color:var(--acc); }
-  .acts { width:100%; display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-  .btn { border:0; border-radius:14px; padding:15px; font-size:16px; font-weight:600; cursor:pointer; background:var(--acc); color:#07121a; transition:transform .15s, filter .2s; }
-  .btn:hover { filter:brightness(1.1); }
-  .btn:active { transform:scale(.97); }
-  .btn.alt { background:var(--card); color:var(--ink); border:1px solid var(--line); }
-  .btn.full { grid-column:1/-1; }
-  .small { font-size:12px; color:var(--mute); margin-top:12px; text-align:center; min-height:16px; }
-  .drawer { display:none; width:100%; margin-top:16px; padding:14px; background:var(--card); border:1px solid var(--line); border-radius:14px; font-size:14px; color:var(--mute); }
-  body.set .drawer { display:block; }
-  .drawer h4 { margin:12px 0 8px; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--ink); }
-  .drawer h4:first-child { margin-top:0; }
-  .drawer input[type=text], .drawer input[type=number] { width:100%; margin-bottom:8px; background:var(--bg); border:1px solid var(--line); color:var(--ink); border-radius:10px; padding:9px 11px; font-size:14px; user-select:text; }
-  .themes { display:flex; gap:10px; }
-  .sw { width:24px; height:24px; border-radius:50%; cursor:pointer; border:2px solid transparent; }
-  .sw.sel { border-color:var(--ink); }
-  .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; text-align:center; }
-  .stats b { display:block; font-size:20px; color:var(--ink); font-family:Georgia,serif; }
-  .stats span { font-size:10px; }
-  #nlist div { margin-top:5px; }
-  label.row { display:flex; gap:8px; align-items:center; }
-  /* mini always-on-top mode */
-  body.mini .bar, body.mini .stage > :not(.mini-row) { display:none; }
-  .mini-row { display:none; }
-  body.mini .mini-row { display:flex; align-items:center; gap:10px; width:100%; height:100%; -webkit-app-region:drag; padding:0 4px; }
-  body.mini .stage { padding:0 12px; justify-content:center; overflow:hidden; }
-  .mini-row .time { font-size:38px; }
-  .mini-row .who { flex:1; min-width:0; }
-  .mini-row .nm { font-size:13px; color:var(--mute); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .mini-row button { -webkit-app-region:no-drag; }
-  body.web .wc { display:none; }
-  :focus-visible { outline:2px solid var(--acc); outline-offset:2px; }
+  :root {
+    --bg-base: #080c10;
+    --bg-surface: rgba(16, 26, 36, 0.72);
+    --bg-surface-elevated: rgba(23, 37, 51, 0.85);
+    --bg-card: rgba(18, 29, 41, 0.55);
+    --line: rgba(255, 255, 255, 0.08);
+    --line-active: rgba(255, 255, 255, 0.18);
+    --ink-primary: #f0f6f4;
+    --ink-secondary: #9cb1c2;
+    --ink-muted: #5e7688;
+    --acc: #4f8cf6;
+    --acc-glow: rgba(79, 140, 246, 0.35);
+    --acc-subtle: rgba(79, 140, 246, 0.12);
+    --radius-sm: 8px;
+    --radius-md: 14px;
+    --radius-lg: 20px;
+    --radius-full: 9999px;
+    --shadow-soft: 0 16px 36px -10px rgba(0, 0, 0, 0.5);
+    --shadow-glow: 0 0 28px var(--acc-glow);
+  }
+
+  body[data-mode="break"] {
+    --acc: #3ecf8e;
+    --acc-glow: rgba(62, 207, 142, 0.35);
+    --acc-subtle: rgba(62, 207, 142, 0.12);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+  
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    background: var(--bg-base);
+    color: var(--ink-primary);
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    background-image: 
+      radial-gradient(ellipse 70% 50% at 50% -10%, var(--acc-glow), transparent 70%),
+      radial-gradient(circle at 100% 100%, rgba(13, 22, 33, 0.9), transparent 60%);
+    background-color: var(--bg-base);
+    transition: background-image 0.8s ease, color 0.3s;
+  }
+
+  /* Title Bar */
+  .titlebar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 44px;
+    padding: 0 12px 0 16px;
+    background: rgba(8, 12, 16, 0.4);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--line);
+    -webkit-app-region: drag;
+    z-index: 40;
+  }
+  .title-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .app-logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--ink-primary);
+  }
+  .app-logo svg {
+    width: 16px;
+    height: 16px;
+    fill: var(--acc);
+    filter: drop-shadow(0 0 6px var(--acc));
+  }
+  .phone-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 9px;
+    border-radius: var(--radius-full);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--line);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--ink-secondary);
+    transition: all 0.25s ease;
+    cursor: pointer;
+    -webkit-app-region: no-drag;
+  }
+  .phone-badge:hover {
+    background: var(--bg-surface-elevated);
+    border-color: var(--line-active);
+  }
+  .status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #64748b;
+    transition: all 0.3s ease;
+  }
+  .status-dot.online {
+    background: #10b981;
+    box-shadow: 0 0 8px #10b981;
+  }
+  .status-dot.busy {
+    background: var(--acc);
+    box-shadow: 0 0 8px var(--acc);
+  }
+
+  .window-actions, .tool-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    -webkit-app-region: no-drag;
+  }
+  .icon-btn {
+    background: transparent;
+    border: none;
+    color: var(--ink-muted);
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+  }
+  .icon-btn:hover {
+    background: var(--bg-surface-elevated);
+    color: var(--ink-primary);
+  }
+  .icon-btn.active {
+    color: var(--acc);
+    background: var(--acc-subtle);
+  }
+  .icon-btn.danger:hover {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+  }
+
+  /* Main Workspace */
+  .workspace {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 16px 28px 24px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* Task Header */
+  .task-wrapper {
+    width: 100%;
+    max-width: 480px;
+    position: relative;
+    margin-bottom: 8px;
+  }
+  .task-input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--line);
+    color: var(--ink-primary);
+    text-align: center;
+    font-size: 19px;
+    font-weight: 600;
+    padding: 8px 12px;
+    outline: none;
+    transition: all 0.3s ease;
+    user-select: text;
+  }
+  .task-input::placeholder {
+    color: var(--ink-muted);
+    font-weight: 400;
+  }
+  .task-input:focus {
+    border-color: var(--acc);
+    box-shadow: 0 1px 0 var(--acc);
+  }
+
+  /* Interactive Block Matrix / Stepper */
+  .block-stepper-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    margin: 10px 0 16px;
+    padding: 8px 16px;
+    background: var(--bg-surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-full);
+    backdrop-filter: blur(16px);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+  }
+  .stepper-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink-secondary);
+  }
+  .stepper-header .meta-label {
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .stepper-nav {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .step-arrow-btn {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 1px solid var(--line);
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--ink-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 11px;
+    transition: all 0.2s;
+  }
+  .step-arrow-btn:hover {
+    background: var(--bg-surface-elevated);
+    color: var(--ink-primary);
+    border-color: var(--line-active);
+  }
+
+  .block-track {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .block-pill {
+    min-width: 28px;
+    height: 28px;
+    padding: 0 8px;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--line);
+    background: rgba(255, 255, 255, 0.02);
+    color: var(--ink-muted);
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .block-pill:hover {
+    color: var(--ink-primary);
+    border-color: var(--line-active);
+    transform: translateY(-1px);
+  }
+  .block-pill.done {
+    background: rgba(62, 207, 142, 0.15);
+    border-color: rgba(62, 207, 142, 0.4);
+    color: #3ecf8e;
+  }
+  .block-pill.active {
+    background: var(--acc);
+    border-color: var(--acc);
+    color: #060a0e;
+    box-shadow: 0 0 12px var(--acc);
+    transform: scale(1.08);
+  }
+  .block-pill.add-pill {
+    border-style: dashed;
+    color: var(--ink-secondary);
+    font-weight: 400;
+    padding: 0 7px;
+  }
+  .block-pill.add-pill:hover {
+    border-style: solid;
+    border-color: var(--acc);
+    color: var(--acc);
+  }
+
+  /* Timer Display Ring */
+  .ring-container {
+    position: relative;
+    width: min(290px, 68vw);
+    aspect-ratio: 1;
+    margin: 4px 0 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .ring-svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+  }
+  .ring-bg {
+    stroke: rgba(255, 255, 255, 0.04);
+    fill: none;
+    stroke-width: 6.5;
+  }
+  .ring-indicator {
+    stroke: var(--acc);
+    fill: none;
+    stroke-width: 6.5;
+    stroke-linecap: round;
+    stroke-dasharray: 691;
+    stroke-dashoffset: 0;
+    filter: drop-shadow(0 0 10px var(--acc-glow));
+    transition: stroke-dashoffset 0.25s linear, stroke 0.4s ease;
+  }
+  .ring-center-content {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+  .phase-badge {
+    padding: 3px 12px;
+    border-radius: var(--radius-full);
+    background: var(--acc-subtle);
+    border: 1px solid var(--acc);
+    color: var(--acc);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+    transition: all 0.3s;
+  }
+  .timer-clock {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(48px, 15vmin, 76px);
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-primary);
+    text-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+  }
+  .sub-state {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink-secondary);
+    margin-top: 6px;
+  }
+
+  /* Duration & Preset Controls */
+  .presets-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 18px;
+  }
+  .preset-stepper {
+    display: flex;
+    align-items: center;
+    background: var(--bg-surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-full);
+    padding: 3px 6px;
+  }
+  .stepper-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: var(--ink-secondary);
+    font-size: 15px;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+  }
+  .stepper-btn:hover {
+    background: var(--bg-surface-elevated);
+    color: var(--ink-primary);
+  }
+  .stepper-input {
+    width: 44px;
+    background: transparent;
+    border: none;
+    color: var(--ink-primary);
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 15px;
+    text-align: center;
+    outline: none;
+    user-select: text;
+  }
+  .stepper-input::-webkit-inner-spin-button,
+  .stepper-input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  .unit-label {
+    font-size: 11px;
+    color: var(--ink-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-right: 6px;
+  }
+
+  .quick-chips {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .chip-btn {
+    padding: 6px 13px;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--line);
+    background: var(--bg-surface);
+    color: var(--ink-secondary);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .chip-btn:hover {
+    background: var(--bg-surface-elevated);
+    color: var(--ink-primary);
+    border-color: var(--line-active);
+  }
+  .chip-btn.active {
+    background: var(--acc-subtle);
+    border-color: var(--acc);
+    color: var(--acc);
+  }
+
+  /* Actions Grid */
+  .control-grid {
+    width: 100%;
+    max-width: 400px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 14px 20px;
+    border-radius: var(--radius-md);
+    border: 1px solid transparent;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .btn:active {
+    transform: scale(0.97);
+  }
+  .btn.primary {
+    grid-column: 1 / -1;
+    background: var(--acc);
+    color: #07121a;
+    font-size: 15px;
+    box-shadow: 0 4px 18px var(--acc-glow);
+  }
+  .btn.primary:hover {
+    filter: brightness(1.1);
+    box-shadow: 0 6px 24px var(--acc-glow);
+  }
+  .btn.secondary {
+    background: var(--bg-surface);
+    border-color: var(--line);
+    color: var(--ink-primary);
+  }
+  .btn.secondary:hover {
+    background: var(--bg-surface-elevated);
+    border-color: var(--line-active);
+  }
+
+  /* Footer Status & Hotkey Hint */
+  .footer-hint {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--ink-muted);
+    text-align: center;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .footer-hint kbd {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-family: inherit;
+    font-size: 10px;
+    color: var(--ink-secondary);
+  }
+
+  /* Side Drawer / Modal */
+  .drawer-overlay {
+    position: fixed;
+    inset: 44px 0 0 0;
+    background: rgba(4, 8, 12, 0.65);
+    backdrop-filter: blur(8px);
+    z-index: 50;
+    display: none;
+    justify-content: flex-end;
+  }
+  body.drawer-open .drawer-overlay {
+    display: flex;
+  }
+  .drawer-panel {
+    width: 380px;
+    height: 100%;
+    background: #0f1923;
+    border-left: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    box-shadow: -10px 0 30px rgba(0, 0, 0, 0.7);
+    animation: slideIn 0.25s ease-out;
+  }
+  @keyframes slideIn {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
+  }
+  .drawer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--line);
+  }
+  .drawer-tabs {
+    display: flex;
+    gap: 6px;
+    padding: 12px 20px 4px;
+    border-bottom: 1px solid var(--line);
+  }
+  .drawer-tab {
+    padding: 6px 12px;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    border: none;
+    color: var(--ink-muted);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .drawer-tab.active {
+    background: var(--bg-surface-elevated);
+    color: var(--ink-primary);
+  }
+  .drawer-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+  }
+
+  /* Settings Fields */
+  .field-group {
+    margin-bottom: 18px;
+  }
+  .field-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-secondary);
+    margin-bottom: 8px;
+  }
+  .text-input {
+    width: 100%;
+    background: #091017;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    color: var(--ink-primary);
+    font-family: inherit;
+    font-size: 13px;
+    padding: 10px 12px;
+    outline: none;
+    user-select: text;
+    transition: border-color 0.2s;
+  }
+  .text-input:focus {
+    border-color: var(--acc);
+  }
+
+  .theme-swatches {
+    display: flex;
+    gap: 10px;
+  }
+  .swatch {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: transform 0.2s;
+  }
+  .swatch.selected {
+    border-color: #fff;
+    transform: scale(1.15);
+  }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .stat-card {
+    background: #142230;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+    text-align: center;
+  }
+  .stat-val {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--ink-primary);
+  }
+  .stat-desc {
+    font-size: 11px;
+    color: var(--ink-muted);
+    margin-top: 2px;
+  }
+
+  .notes-feed {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .note-item {
+    background: #13202d;
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--acc);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    font-size: 12px;
+    color: var(--ink-secondary);
+    line-height: 1.4;
+  }
+
+  /* Mini Mode Widget */
+  body.mini .titlebar,
+  body.mini .task-wrapper,
+  body.mini .block-stepper-card,
+  body.mini .presets-row,
+  body.mini .control-grid,
+  body.mini .footer-hint,
+  body.mini .drawer-overlay {
+    display: none !important;
+  }
+  .mini-bar {
+    display: none;
+  }
+  body.mini .mini-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    height: 100%;
+    padding: 0 14px;
+    -webkit-app-region: drag;
+  }
+  body.mini .workspace {
+    padding: 0;
+    justify-content: center;
+  }
+  .mini-bar .time {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--ink-primary);
+  }
+  .mini-meta {
+    flex: 1;
+    margin: 0 14px;
+    min-width: 0;
+  }
+  .mini-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .mini-sub {
+    font-size: 11px;
+    color: var(--ink-muted);
+  }
+  .mini-bar button {
+    -webkit-app-region: no-drag;
+  }
+  body.web .electron-only {
+    display: none;
+  }
+
+  /* Fonts bundled next to this file, so the page looks right without internet */
+  @font-face { font-family: 'Plus Jakarta Sans'; src: url('fonts/jakarta.ttf') format('truetype'); font-weight: 200 800; font-display: swap; }
+  @font-face { font-family: 'JetBrains Mono'; src: url('fonts/mono.ttf') format('truetype'); font-weight: 100 800; font-display: swap; }
+
+  /* Pair phone (QR) */
+  .pair-overlay {
+    position: fixed; inset: 0; z-index: 90; display: none; align-items: center; justify-content: center;
+    padding: 16px; background: rgba(4, 7, 10, 0.62); backdrop-filter: blur(10px); -webkit-app-region: no-drag;
+  }
+  .pair-overlay.open { display: flex; animation: pairFade .25s ease; }
+  @keyframes pairFade { from { opacity: 0; } to { opacity: 1; } }
+  .pair-modal {
+    position: relative; width: 100%; max-width: 380px; max-height: calc(100vh - 32px); overflow-y: auto;
+    padding: 22px 22px 18px; text-align: center;
+    background: linear-gradient(160deg, rgba(34, 52, 70, 0.82), rgba(14, 22, 31, 0.9));
+    border: 1px solid var(--line-active); border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-soft), 0 0 60px -20px var(--acc-glow); backdrop-filter: blur(18px);
+  }
+  .pair-close { position: absolute; top: 12px; right: 12px; }
+  .pair-badge {
+    display: inline-block; padding: 4px 12px; border-radius: var(--radius-full); font-size: 11px; font-weight: 700;
+    color: var(--acc); background: var(--acc-subtle); border: 1px solid var(--acc-glow);
+  }
+  .pair-modal h2 { margin: 12px 0 6px; font-size: 21px; font-weight: 700; }
+  .pair-lead { font-size: 12.5px; line-height: 1.55; color: var(--ink-secondary); margin-bottom: 14px; }
+  .pair-qr {
+    width: 236px; height: 236px; margin: 0 auto; padding: 8px; border-radius: 18px; background: #fff;
+    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.6);
+  }
+  .pair-qr svg { display: block; width: 100%; height: 100%; }
+  .pair-qr.dim { opacity: .35; filter: grayscale(1); }
+  .pair-ips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin: 14px 0 8px; }
+  .pair-chip {
+    padding: 5px 11px; border-radius: var(--radius-full); border: 1px solid var(--line-active); background: transparent;
+    color: var(--ink-secondary); font: 600 11.5px 'JetBrains Mono', monospace; cursor: pointer; -webkit-app-region: no-drag;
+  }
+  .pair-chip.active { color: #07121a; background: var(--acc); border-color: var(--acc); }
+  .pair-typed, .pair-typed * { user-select: text; }
+  .pair-typed {
+    margin: 4px 0 12px; padding: 9px 12px; border-radius: var(--radius-md); background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--line); font: 500 12px 'JetBrains Mono', monospace; color: var(--ink-secondary);
+  }
+  .pair-typed b { color: var(--ink-primary); }
+  .pair-status { display: flex; align-items: center; justify-content: center; gap: 9px; font-size: 13px; font-weight: 600; min-height: 22px; }
+  .pair-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--acc); animation: pairPulse 1.6s ease-in-out infinite; }
+  .pair-status.ok .pair-dot { background: #3ecf8e; animation: none; }
+  .pair-status.bad .pair-dot { background: #f59e0b; animation: none; }
+  @keyframes pairPulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.7); } }
+  .pair-actions { display: flex; gap: 8px; justify-content: center; margin-top: 12px; }
+  .pair-actions .btn { flex: 1; }
+  .pair-help { margin-top: 12px; text-align: left; border: 1px solid var(--line); border-radius: var(--radius-md); background: rgba(255,255,255,0.03); }
+  .pair-help summary { cursor: pointer; padding: 10px 14px; font-size: 12.5px; font-weight: 600; color: var(--ink-secondary); list-style: none; }
+  .pair-help summary::-webkit-details-marker { display: none; }
+  .pair-help ol { margin: 0; padding: 0 16px 12px 32px; font-size: 12px; line-height: 1.6; color: var(--ink-secondary); }
+  .pair-help li { margin-bottom: 4px; }
+  .pair-help code { user-select: text; font: 500 11px 'JetBrains Mono', monospace; color: var(--ink-primary); background: rgba(255,255,255,0.07); padding: 1px 5px; border-radius: 5px; }
+  .pair-web { display: none; font-size: 13px; line-height: 1.6; color: var(--ink-secondary); padding: 8px 4px 4px; }
+  @media (prefers-reduced-motion: reduce) { .pair-dot, .pair-overlay.open { animation: none; } }
 </style>
 </head>
 <body data-mode="idle">
-<div class="bar">
-  <span class="dot" id="dot"></span><span class="t" id="msg">Study Mirror</span>
-  <button class="tb wc" id="pin" title="Keep on top (P)">Pin</button>
-  <button class="tb wc" id="mini" title="Mini window (M)">Mini</button>
-  <button class="tb" id="gear" title="Settings">Settings</button>
-  <button class="tb wc" id="wmin">&ndash;</button>
-  <button class="tb wc" id="wmax">&#9633;</button>
-  <button class="tb wc" id="wx">&#10005;</button>
-</div>
 
-<div class="stage">
-  <input class="task" id="task" placeholder="What are you working on?" maxlength="60" autocomplete="off">
-
-  <div class="ringwrap">
-    <svg viewBox="0 0 240 240"><circle class="track" cx="120" cy="120" r="110"/><circle class="ring" id="ring" cx="120" cy="120" r="110"/></svg>
-    <div class="c" aria-live="polite">
-      <div class="lbl" id="label">Ready</div>
-      <div class="time" id="time">50:00</div>
-      <div class="blk" id="blk"></div>
+<!-- Title Bar -->
+<div class="titlebar">
+  <div class="title-left">
+    <div class="app-logo">
+      <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      <span>Study Mirror</span>
+    </div>
+    <div class="phone-badge" id="phoneBadge" title="Click to view pairing info">
+      <span class="status-dot" id="dot"></span>
+      <span id="badgeText">Phone Waiting</span>
+      <span id="rttText" style="opacity:0.6;font-size:10px;"></span>
     </div>
   </div>
 
-  <div class="pick"><button class="rnd" id="dm" aria-label="5 minutes less">&minus;</button><input id="fmin" type="number" min="1" max="240" value="50" aria-label="Minutes"><span class="lbl">min</span><button class="rnd" id="dp" aria-label="5 minutes more">+</button></div>
-  <div class="chips" id="chips"><button class="chip" data-m="25">25</button><button class="chip" data-m="50">50</button><button class="chip" data-m="90">90</button></div>
-
-  <div class="acts">
-    <button class="btn full" id="start">Start block</button>
-    <button class="btn alt" id="brk">Break &middot; <span id="bl">10</span> min</button>
-    <button class="btn alt" id="end">End session</button>
+  <div class="tool-actions">
+    <button class="icon-btn electron-only" id="pinBtn" title="Keep on top (P)">Pin</button>
+    <button class="icon-btn electron-only" id="miniBtn" title="Mini window (M)">Mini</button>
+    <button class="icon-btn" id="pairBtn" title="Pair your phone with a QR code">Pair phone</button>
+    <button class="icon-btn" id="drawerToggle" title="Settings & Analytics">Config</button>
+    <div class="window-actions electron-only">
+      <button class="icon-btn" id="wMin">&ndash;</button>
+      <button class="icon-btn" id="wMax">&#9633;</button>
+      <button class="icon-btn danger" id="wClose">&#10005;</button>
+    </div>
   </div>
-  <div class="small" id="hint">Space starts or pauses &middot; M mini &middot; P pin</div>
+</div>
 
-  <div class="drawer" id="drawer">
-    <h4>Look</h4>
-    <div class="themes" id="themes"></div>
-    <h4>Timer</h4>
-    <label class="row"><input type="number" id="bmin" min="1" max="60" value="10" style="width:70px;margin:0"> break minutes</label>
-    <label class="row" style="margin-top:8px"><input type="number" id="tot" min="1" max="12" value="5" style="width:70px;margin:0"> blocks today</label>
-    <label class="row" style="margin-top:8px"><input type="checkbox" id="snd" checked> sound when time is up</label>
-    <h4>Phone</h4>
-    <input type="text" id="ip" placeholder="Phone address, e.g. 192.168.1.7">
-    <input type="text" id="code" placeholder="Pairing code" inputmode="numeric">
-    <div class="stats"><div><b id="s1">0</b><span>blocks</span></div><div><b id="s2">0</b><span>escapes stopped</span></div><div><b id="s3">0</b><span>urges</span></div><div><b id="s4">0</b><span>extensions</span></div></div>
-    <div id="nlist"></div>
+<!-- Primary Stage -->
+<div class="workspace">
+  <!-- Task Title -->
+  <div class="task-wrapper">
+    <input class="task-input" id="taskInput" placeholder="What are you mastering today?" maxlength="70" autocomplete="off">
   </div>
 
-  <div class="mini-row">
-    <div class="who"><div class="time" id="mtime">50:00</div><div class="nm" id="mname"></div></div>
-    <button class="tb" id="mpause">Pause</button><button class="tb" id="mback">Expand</button>
+  <!-- Interactive Block Matrix & Stepper -->
+  <div class="block-stepper-card">
+    <div class="stepper-header">
+      <div class="stepper-nav">
+        <button class="step-arrow-btn" id="prevBlock" title="Previous block ([)">&#9664;</button>
+        <span class="meta-label" id="blockMeta">Block 1 of 5</span>
+        <button class="step-arrow-btn" id="nextBlock" title="Next block (])">&#9654;</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:4px;">
+        <button class="step-arrow-btn" id="decTotal" title="Remove block" style="font-size:14px;">&minus;</button>
+        <span style="font-size:11px;color:var(--ink-muted);">Total</span>
+        <button class="step-arrow-btn" id="incTotal" title="Add block" style="font-size:14px;">+</button>
+      </div>
+    </div>
+    <div class="block-track" id="blockTrack">
+      <!-- Generated dynamically -->
+    </div>
+  </div>
+
+  <!-- Big Timer Ring Gauge -->
+  <div class="ring-container">
+    <svg class="ring-svg" viewBox="0 0 240 240">
+      <circle class="ring-bg" cx="120" cy="120" r="110"/>
+      <circle class="ring-indicator" id="ringProgress" cx="120" cy="120" r="110"/>
+    </svg>
+    <div class="ring-center-content">
+      <div class="phase-badge" id="phaseBadge">Ready</div>
+      <div class="timer-clock" id="timerClock">50:00</div>
+      <div class="sub-state" id="subState">Set your goal &amp; begin</div>
+    </div>
+  </div>
+
+  <!-- Duration Presets & Fine Adjuster -->
+  <div class="presets-row">
+    <div class="preset-stepper">
+      <button class="stepper-btn" id="decMin" aria-label="Subtract 5 mins">&minus;</button>
+      <input class="stepper-input" id="focusMinInput" type="number" min="1" max="240" value="50">
+      <span class="unit-label">m</span>
+      <button class="stepper-btn" id="incMin" aria-label="Add 5 mins">+</button>
+    </div>
+    <div class="quick-chips">
+      <button class="chip-btn" data-m="25">25</button>
+      <button class="chip-btn active" data-m="50">50</button>
+      <button class="chip-btn" data-m="90">90</button>
+    </div>
+  </div>
+
+  <!-- Main Action Triggers -->
+  <div class="control-grid">
+    <button class="btn primary" id="startBtn">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+      <span id="startBtnLabel">Start Block 1</span>
+    </button>
+    <button class="btn secondary" id="breakBtn">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/></svg>
+      <span>Break &middot; <span id="breakMinLabel">10</span>m</span>
+    </button>
+    <button class="btn secondary" id="endBtn">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+      <span>End Session</span>
+    </button>
+  </div>
+
+  <!-- Hotkeys and hint -->
+  <div class="footer-hint">
+    <span><kbd>Space</kbd> Start / Pause</span>
+    <span><kbd>[</kbd> <kbd>]</kbd> Select Block</span>
+    <span><kbd>B</kbd> Break</span>
+    <span><kbd>P</kbd> Pin</span>
+  </div>
+
+  <!-- Mini Mode Layout (Active when in PiP mode) -->
+  <div class="mini-bar">
+    <div class="time" id="miniClock">50:00</div>
+    <div class="mini-meta">
+      <div class="mini-title" id="miniTask">Focus Session</div>
+      <div class="mini-sub" id="miniSub">Block 1 of 5</div>
+    </div>
+    <button class="icon-btn" id="miniPauseBtn">Pause</button>
+    <button class="icon-btn" id="miniExpandBtn">Expand</button>
+  </div>
+</div>
+
+<!-- Slide-out Configuration & Stats Drawer -->
+<div class="drawer-overlay" id="drawerOverlay">
+  <div class="drawer-panel">
+    <div class="drawer-header">
+      <div style="font-weight:700;font-size:14px;letter-spacing:0.04em;">DASHBOARD &amp; SETTINGS</div>
+      <button class="icon-btn" id="closeDrawer">&#10005;</button>
+    </div>
+    <div class="drawer-tabs">
+      <button class="drawer-tab active" data-tab="tab-timer">Timer</button>
+      <button class="drawer-tab" data-tab="tab-phone">Phone Link</button>
+      <button class="drawer-tab" data-tab="tab-stats">Stats &amp; Notes</button>
+    </div>
+    <div class="drawer-content">
+      <!-- Timer Settings Tab -->
+      <div class="tab-pane" id="tab-timer">
+        <div class="field-group">
+          <label class="field-label">Focus Theme Accent</label>
+          <div class="theme-swatches" id="swatchesContainer"></div>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Break Duration (Minutes)</label>
+          <input class="text-input" type="number" id="breakMinInput" min="1" max="60" value="10">
+        </div>
+        <div class="field-group">
+          <label class="field-label">Target Blocks Today</label>
+          <input class="text-input" type="number" id="totalBlocksInput" min="1" max="16" value="5">
+        </div>
+        <div class="field-group" style="display:flex;align-items:center;gap:8px;margin-top:14px;">
+          <input type="checkbox" id="soundToggle" checked style="accent-color:var(--acc);">
+          <label for="soundToggle" style="font-size:13px;color:var(--ink-secondary);cursor:pointer;">Play chime when block/break ends</label>
+        </div>
+      </div>
+
+      <!-- Phone Link Tab -->
+      <div class="tab-pane" id="tab-phone" style="display:none;">
+        <button class="btn primary" id="pairBtn2" style="width:100%;margin-bottom:14px;">Pair with QR code</button>
+        <div class="field-group">
+          <label class="field-label">Phone IP Address</label>
+          <input class="text-input" type="text" id="phoneIp" placeholder="e.g. 192.168.1.5">
+          <div style="font-size:11px;color:var(--ink-muted);margin-top:4px;">
+            Find this in the Study Mirror app on your phone.
+          </div>
+        </div>
+        <div class="field-group">
+          <label class="field-label">6-Digit Pairing Code</label>
+          <input class="text-input" type="text" id="phoneCode" placeholder="Pairing token" inputmode="numeric">
+        </div>
+        <button class="btn secondary" id="testConnBtn" style="width:100%;margin-top:8px;">Test Connection</button>
+      </div>
+
+      <!-- Stats & Notes Tab -->
+      <div class="tab-pane" id="tab-stats" style="display:none;">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-val" id="statBlocks">0</div>
+            <div class="stat-desc">Blocks Conquered</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val" id="statBlocked">0</div>
+            <div class="stat-desc">Distractions Cut</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val" id="statUrges">0</div>
+            <div class="stat-desc">Urges Surfed</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val" id="statExtensions">0</div>
+            <div class="stat-desc">Extensions Used</div>
+          </div>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Parked Urge Notes</label>
+          <div class="notes-feed" id="notesFeed">
+            <div style="font-size:12px;color:var(--ink-muted);font-style:italic;">No reflections recorded today.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Pair phone modal -->
+<div class="pair-overlay" id="pairOverlay" aria-hidden="true">
+  <div class="pair-modal" role="dialog" aria-labelledby="pairTitle">
+    <button class="icon-btn pair-close" id="pairClose" aria-label="Close">&#10005;</button>
+    <span class="pair-badge">Pair your phone</span>
+    <h2 id="pairTitle">Link with Study Mirror</h2>
+
+    <div id="pairBody">
+      <p class="pair-lead">On the phone open Study Mirror and tap <b>Scan the laptop QR</b>. A normal camera or Google Lens works too: tap the link it shows, then <b>Open Study Mirror</b>.</p>
+      <div class="pair-qr dim" id="pairQr"></div>
+      <div class="pair-ips" id="pairIps"></div>
+      <div class="pair-typed" id="pairTyped">&nbsp;</div>
+      <div class="pair-status" id="pairStatus"><span class="pair-dot"></span><span id="pairStatusText">Preparing...</span></div>
+      <div class="pair-actions">
+        <button class="btn secondary" id="pairRefresh">New code</button>
+      </div>
+      <details class="pair-help" id="pairHelp">
+        <summary>Not connecting?</summary>
+        <ol>
+          <li>Phone and laptop must be on the same Wi-Fi (not a guest network).</li>
+          <li>If Windows asked about network access, choose <b>Private networks</b> and Allow. Missed it? <button class="pair-chip" id="fixFw">Allow in Windows Firewall</button></li>
+          <li>Test from the phone's browser: <code id="pairPing">http://...</code> should say ok.</li>
+          <li>Still no luck? Some routers block devices from talking to each other. Turn on the phone's hotspot, join it from the laptop and press <b>New code</b>.</li>
+        </ol>
+      </details>
+    </div>
+
+    <div class="pair-web" id="pairWeb">
+      QR pairing needs the <b>Study Mirror desktop app</b>, because it runs the small listener the phone talks to.
+      In a browser, open <b>Config &rarr; Phone Link</b> and type the phone address and pairing code from the app.
+    </div>
   </div>
 </div>
 
 <script>
+// --- State & Core Setup ---
 const $ = id => document.getElementById(id);
-const C = 691, L = localStorage;
+const CIRCUMFERENCE = 691; // 2 * PI * 110
+const L = localStorage;
 const send = (c, v) => window.sm && window.sm.send(c, v);
 if (!window.sm) document.body.classList.add('web');
 
-let block = +L.sm_block || 1, total = +L.sm_total || 5;
-let mode = 'idle', endAt = 0, dur = 0, paused = 0, pinned = L.sm_pin === '1', mini = false, beeped = false;
-const themes = { Blue:'#7aa7ff', Violet:'#a58bff', Teal:'#5fd4c8', Green:'#8ad97a', Amber:'#f0b45c', Rose:'#ee8fa8' };
+let block = +L.sm_block || 1;
+let total = +L.sm_total || 5;
+let mode = 'idle'; // 'idle' | 'focus' | 'break'
+let endAt = 0;
+let dur = 0;
+let paused = 0;
+let pinned = L.sm_pin === '1';
+let mini = false;
+let beeped = false;
 
-$('ip').value = L.sm_ip || ''; $('code').value = L.sm_code || '';
-$('fmin').value = L.sm_fmin || 50; $('bmin').value = L.sm_bmin || 10; $('tot').value = total;
-$('task').value = L.sm_task || ''; $('snd').checked = L.sm_snd !== '0';
-if (!$('ip').value || !$('code').value) document.body.classList.add('set');
+const themes = {
+  Sapphire: '#4f8cf6',
+  Violet: '#9d7dfa',
+  Emerald: '#3ecf8e',
+  Amber: '#f59e0b',
+  Rose: '#f43f5e',
+  Teal: '#14b8a6'
+};
 
-function accent(c) { document.documentElement.style.setProperty('--acc', c); L.sm_acc = c; }
-const theme = L.sm_acc || themes.Blue;
-document.body.dataset.theme = theme;
-for (const [n, c] of Object.entries(themes)) {
-  const s = document.createElement('div'); s.className = 'sw' + (c === theme ? ' sel' : ''); s.style.background = c; s.title = n;
-  s.onclick = () => { document.querySelectorAll('.sw').forEach(x => x.classList.remove('sel')); s.classList.add('sel'); applyAcc(c); };
-  $('themes').appendChild(s);
+// Fill persisted inputs
+$('phoneIp').value = L.sm_ip || '';
+$('phoneCode').value = L.sm_code || '';
+$('focusMinInput').value = L.sm_fmin || 50;
+$('breakMinInput').value = L.sm_bmin || 10;
+$('totalBlocksInput').value = total;
+$('taskInput').value = L.sm_task || '';
+$('soundToggle').checked = L.sm_snd !== '0';
+
+// Theme builder
+let currentAccent = L.sm_acc || themes.Sapphire;
+function setAccent(color) {
+  currentAccent = color;
+  L.sm_acc = color;
+  if (mode !== 'break') {
+    document.documentElement.style.setProperty('--acc', color);
+    document.documentElement.style.setProperty('--acc-glow', color + '4d');
+    document.documentElement.style.setProperty('--acc-subtle', color + '1f');
+  }
 }
-// focus uses the chosen accent, break stays green
-function applyAcc(c) { L.sm_acc = c; document.body.style.setProperty('--focus-acc', c); refreshAcc(); }
-function refreshAcc() {
-  const c = mode === 'break' ? '#7fd1ae' : (L.sm_acc || themes.Blue);
-  document.documentElement.style.setProperty('--acc', c);
-  document.body.style.removeProperty('--acc');
+setAccent(currentAccent);
+
+// Render theme swatches
+for (const [name, hex] of Object.entries(themes)) {
+  const swatch = document.createElement('div');
+  swatch.className = 'swatch' + (hex === currentAccent ? ' selected' : '');
+  swatch.style.background = hex;
+  swatch.title = name;
+  swatch.onclick = () => {
+    document.querySelectorAll('.swatch').forEach(s => s.classList.remove('selected'));
+    swatch.classList.add('selected');
+    setAccent(hex);
+  };
+  $('swatchesContainer').appendChild(swatch);
 }
 
-const mins = () => Math.min(240, Math.max(1, parseInt($('fmin').value) || 50));
-const fmt = s => { const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60;
-  return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0'); };
-function say(t, on) { $('msg').textContent = t; $('dot').className = 'dot' + (on ? ' on' : ''); }
+const getFocusMinutes = () => Math.min(240, Math.max(1, parseInt($('focusMinInput').value) || 50));
+const getBreakMinutes = () => Math.min(60, Math.max(1, parseInt($('breakMinInput').value) || 10));
 
-function paint() {
-  $('blk').textContent = 'Block ' + block + ' of ' + total;
-  $('start').textContent = mode === 'focus' ? (paused ? 'Resume' : 'Pause') : 'Start block ' + block;
-  $('mpause').textContent = paused ? 'Resume' : 'Pause';
-  $('bl').textContent = $('bmin').value || 10;
-  document.querySelectorAll('.chip').forEach(c => c.classList.toggle('sel', +c.dataset.m === mins()));
-  L.sm_block = block; L.sm_total = total; L.sm_fmin = mins(); L.sm_bmin = $('bmin').value; L.sm_task = $('task').value;
-  $('mname').textContent = $('task').value || (mode === 'break' ? 'Break' : 'Focus');
-}
-function setMode(m, secs) {
-  mode = m; paused = 0; beeped = false; document.body.dataset.mode = m;
-  $('label').textContent = m === 'focus' ? 'Focus' : m === 'break' ? 'Break' : 'Ready';
-  dur = secs || 0; endAt = dur ? Date.now() + dur * 1000 : 0;
-  $('ring').style.transition = 'none'; $('ring').style.strokeDashoffset = 0;
-  void $('ring').getBoundingClientRect(); $('ring').style.transition = '';
-  refreshAcc(); paint();
-}
-function beep() {
-  if (!$('snd').checked) return;
-  try { const a = new AudioContext(), o = a.createOscillator(), g = a.createGain();
-    o.connect(g); g.connect(a.destination); o.frequency.value = 660; g.gain.value = .12; o.start(); o.stop(a.currentTime + .4); } catch (e) {}
-}
-setInterval(() => {
-  let left;
-  if (mode === 'idle') left = mins() * 60;
-  else if (paused) left = Math.ceil(paused / 1000);
-  else left = Math.max(0, Math.ceil((endAt - Date.now()) / 1000));   // ceil, same as the phone
-  $('time').textContent = $('mtime').textContent = fmt(left);
-  if (mode === 'idle') { document.title = 'Study Mirror'; return; }
-  document.title = fmt(left) + ' · ' + $('mname').textContent;
-  $('ring').style.strokeDashoffset = C * (1 - Math.min(1, left / dur));
-  if (left === 0 && !beeped && !paused) { beeped = true; beep(); say(mode === 'focus' ? 'Block done. Take your break.' : 'Break over. Back to it.', true); }
-}, 100);
+const formatTime = seconds => {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(s).padStart(2, '0');
+};
 
-// ---------- phone link
-function baseUrl() {
-  let ip = $('ip').value.trim(); if (!ip) throw new Error('no ip');
+// --- Block Stepper & Matrix Logic ---
+function renderBlockMatrix() {
+  if (block > total) block = total;
+  if (block < 1) block = 1;
+
+  $('blockMeta').textContent = `Block ${block} of ${total}`;
+  $('startBtnLabel').textContent = mode === 'focus' 
+    ? (paused ? 'Resume Block ' + block : 'Pause Block ' + block)
+    : `Start Block ${block}`;
+  $('miniSub').textContent = `Block ${block} of ${total}`;
+
+  const track = $('blockTrack');
+  track.innerHTML = '';
+
+  for (let i = 1; i <= total; i++) {
+    const pill = document.createElement('div');
+    pill.className = 'block-pill';
+    if (i < block) {
+      pill.classList.add('done');
+      pill.innerHTML = `&#10003; ${i}`;
+      pill.title = `Block ${i} completed. Click to revisit.`;
+    } else if (i === block) {
+      pill.classList.add('active');
+      pill.textContent = i;
+      pill.title = `Current Block ${i}`;
+    } else {
+      pill.textContent = i;
+      pill.title = `Upcoming Block ${i}`;
+    }
+
+    pill.onclick = () => selectBlock(i);
+    track.appendChild(pill);
+  }
+
+  // Quick "+ Block" button pill at the end of the line
+  if (total < 16) {
+    const addPill = document.createElement('div');
+    addPill.className = 'block-pill add-pill';
+    addPill.innerHTML = '+';
+    addPill.title = 'Add another block to today\'s goal';
+    addPill.onclick = () => {
+      total++;
+      $('totalBlocksInput').value = total;
+      L.sm_total = total;
+      renderBlockMatrix();
+      if (mode === 'focus') syncBlockToPhone();
+    };
+    track.appendChild(addPill);
+  }
+}
+
+async function selectBlock(targetBlock) {
+  if (targetBlock < 1 || targetBlock > total) return;
+  block = targetBlock;
+  L.sm_block = block;
+  renderBlockMatrix();
+
+  if (mode === 'focus') {
+    // Re-sync session block with phone
+    await syncBlockToPhone();
+  }
+}
+
+async function syncBlockToPhone() {
+  const m = getFocusMinutes();
+  const left = mode === 'focus' && !paused ? Math.max(1, Math.ceil((endAt - Date.now()) / 1000)) : m * 60;
+  await call('focus', { block, total, sec: left, task: $('taskInput').value.trim() });
+}
+
+$('prevBlock').onclick = () => { if (block > 1) selectBlock(block - 1); };
+$('nextBlock').onclick = () => { if (block < total) selectBlock(block + 1); };
+$('decTotal').onclick = () => {
+  if (total > 1) {
+    total--;
+    if (block > total) block = total;
+    $('totalBlocksInput').value = total;
+    L.sm_total = total;
+    renderBlockMatrix();
+    if (mode === 'focus') syncBlockToPhone();
+  }
+};
+$('incTotal').onclick = () => {
+  if (total < 16) {
+    total++;
+    $('totalBlocksInput').value = total;
+    L.sm_total = total;
+    renderBlockMatrix();
+    if (mode === 'focus') syncBlockToPhone();
+  }
+};
+
+// --- Mode & Visual Synchronizer ---
+function setMode(newMode, seconds) {
+  mode = newMode;
+  paused = 0;
+  beeped = false;
+  document.body.dataset.mode = newMode;
+
+  if (newMode === 'break') {
+    document.documentElement.style.setProperty('--acc', '#3ecf8e');
+    document.documentElement.style.setProperty('--acc-glow', 'rgba(62, 207, 142, 0.35)');
+    document.documentElement.style.setProperty('--acc-subtle', 'rgba(62, 207, 142, 0.12)');
+    $('phaseBadge').textContent = 'Recharge Break';
+    $('subState').textContent = 'Rest your eyes & hydrate';
+  } else if (newMode === 'focus') {
+    setAccent(currentAccent);
+    $('phaseBadge').textContent = 'In Focus';
+    $('subState').textContent = $('taskInput').value.trim() || 'Deep work in progress';
+  } else {
+    setAccent(currentAccent);
+    $('phaseBadge').textContent = 'Ready';
+    $('subState').textContent = 'Set your goal & begin';
+  }
+
+  dur = seconds || 0;
+  endAt = dur ? Date.now() + dur * 1000 : 0;
+  
+  // Reset ring smoothly
+  $('ringProgress').style.transition = 'none';
+  $('ringProgress').style.strokeDashoffset = 0;
+  void $('ringProgress').getBoundingClientRect();
+  $('ringProgress').style.transition = '';
+
+  renderBlockMatrix();
+}
+
+function updateVisuals() {
+  let leftSeconds = 0;
+  if (mode === 'idle') {
+    leftSeconds = getFocusMinutes() * 60;
+  } else if (paused) {
+    leftSeconds = Math.ceil(paused / 1000);
+  } else {
+    leftSeconds = Math.max(0, Math.ceil((endAt - Date.now()) / 1000));
+  }
+
+  const timeStr = formatTime(leftSeconds);
+  $('timerClock').textContent = timeStr;
+  $('miniClock').textContent = timeStr;
+  $('miniTask').textContent = $('taskInput').value.trim() || (mode === 'break' ? 'Break' : 'Focus');
+
+  if (mode !== 'idle') {
+    document.title = `${timeStr} \u00B7 ${mode === 'break' ? 'Break' : 'Block ' + block}`;
+    const offset = dur > 0 ? CIRCUMFERENCE * (1 - Math.min(1, leftSeconds / dur)) : 0;
+    $('ringProgress').style.strokeDashoffset = offset;
+
+    if (leftSeconds === 0 && !beeped && !paused) {
+      beeped = true;
+      triggerChime();
+    }
+  } else {
+    document.title = 'Study Mirror \u00B7 Focus Companion';
+    $('ringProgress').style.strokeDashoffset = 0;
+  }
+
+  $('breakMinLabel').textContent = getBreakMinutes();
+  document.querySelectorAll('.chip-btn').forEach(c => {
+    c.classList.toggle('active', +c.dataset.m === getFocusMinutes());
+  });
+}
+setInterval(updateVisuals, 100);
+
+function triggerChime() {
+  if (!$('soundToggle').checked) return;
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+    osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.35); // A5
+    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.45);
+  } catch (e) {}
+}
+
+// --- Phone Communication ---
+function getBaseUrl() {
+  let ip = $('phoneIp').value.trim();
+  if (!ip) throw new Error('No IP configured');
   if (!ip.includes(':')) ip += ':8080';
-  L.sm_ip = $('ip').value.trim(); L.sm_code = $('code').value.trim();
+  L.sm_ip = $('phoneIp').value.trim();
+  L.sm_code = $('phoneCode').value.trim();
   return 'http://' + ip;
 }
+
 async function call(cmd, params = {}) {
-  const q = new URLSearchParams(Object.assign({ t: $('code').value.trim() }, params)).toString();
-  const url = baseUrl() + '/' + cmd + '?' + q, t0 = performance.now();
-  try { const r = await (await fetch(url)).json(); r.rtt = performance.now() - t0; return r; }
-  catch (e) { await fetch(url, { mode: 'no-cors' }); return null; }
-}
-async function run(cmd, params, ok) {
+  const code = $('phoneCode').value.trim();
+  const q = new URLSearchParams(Object.assign({ t: code }, params)).toString();
+  const url = `${getBaseUrl()}/${cmd}?${q}`;
+  const t0 = performance.now();
   try {
-    const r = await call(cmd, params);
-    if (r && r.error) { say('Phone says: ' + r.error, false); return { ok: false }; }
-    say(ok, true); return { ok: true, r };
-  } catch (e) { say("Can't reach the phone. Same Wi-Fi? Is Study Mirror on?", false); return { ok: false }; }
+    const res = await (await fetch(url)).json();
+    res.rtt = Math.round(performance.now() - t0);
+    return res;
+  } catch (err) {
+    try { await fetch(url, { mode: 'no-cors' }); } catch (_) {}
+    return null;
+  }
 }
 
-async function startBlock() {
-  const m = mins();
-  const x = await run('focus', { block, total }, 'Focus started: block ' + block);
-  if (x.ok) setMode('focus', m * 60);
+async function startBlockSession() {
+  const mins = getFocusMinutes();
+  const task = $('taskInput').value.trim();
+  const res = await call('focus', { block, total, sec: mins * 60, task });
+  setMode('focus', mins * 60);
 }
-function togglePause() {
+
+function toggleTimerPause() {
   if (mode !== 'focus') return;
-  if (paused) { endAt = Date.now() + paused; paused = 0; } else { paused = Math.max(0, endAt - Date.now()); }
-  paint();
+  if (paused) {
+    endAt = Date.now() + paused;
+    paused = 0;
+  } else {
+    paused = Math.max(0, endAt - Date.now());
+  }
+  renderBlockMatrix();
 }
-async function startBreak() {
-  const m = Math.max(1, parseInt($('bmin').value) || 10);
-  const x = await run('break', { min: m }, 'Break started: ' + m + ' min');
-  if (!x.ok) return;
-  setMode('break', m * 60);
-  // start from the phone's own clock, minus half the round trip, so both timers hit zero together
-  if (x.r && x.r.leftMs) endAt = Date.now() + x.r.leftMs - (x.r.rtt || 0) / 2;
-  block++; paint();
-}
-$('start').onclick = () => (mode === 'focus' ? togglePause() : startBlock());
-$('mpause').onclick = togglePause;
-$('brk').onclick = startBreak;
-$('end').onclick = async () => { const x = await run('end', {}, 'Session ended'); if (x.ok) setMode('idle', 0); };
 
-async function poll() {
-  if (!$('ip').value.trim() || !$('code').value.trim()) return;
+async function startBreakSession() {
+  const mins = getBreakMinutes();
+  const res = await call('break', { min: mins });
+  setMode('break', mins * 60);
+  if (res && res.leftMs) {
+    endAt = Date.now() + res.leftMs - (res.rtt || 0) / 2;
+  }
+  // Increment block index for the subsequent round
+  if (block < total) block++;
+  renderBlockMatrix();
+}
+
+async function endCurrentSession() {
+  await call('end');
+  setMode('idle', 0);
+}
+
+$('startBtn').onclick = () => (mode === 'focus' ? toggleTimerPause() : startBlockSession());
+$('miniPauseBtn').onclick = toggleTimerPause;
+$('breakBtn').onclick = startBreakSession;
+$('endBtn').onclick = endCurrentSession;
+
+// Poll Phone State
+async function pollPhone() {
+  if (!$('phoneIp').value.trim() || !$('phoneCode').value.trim()) {
+    updateBadge(false, 'Link Required');
+    return;
+  }
   try {
-    const r = await call('state'); if (!r || !r.mode) return;
-    say('Phone connected (' + (r.mode === 'IDLE' ? 'idle' : r.mode.toLowerCase() + ', block ' + r.block) + ')', true);
-    if (mode === 'break' && r.mode === 'BREAK') {            // keep following the phone, even after an extension
-      const left = r.breakLeftMs - (r.rtt || 0) / 2;
-      endAt = Date.now() + left; if (left / 1000 > dur) dur = Math.ceil(left / 1000);
-    } else if (mode === 'break' && r.mode === 'FOCUS') {      // phone finished the break and moved on
-      setMode('focus', mins() * 60);
-    } else if (r.mode === 'IDLE' && mode !== 'idle') setMode('idle', 0);
-    if (r.stats) { $('s1').textContent = r.stats.blocks; $('s2').textContent = r.stats.blocked; $('s3').textContent = r.stats.urges; $('s4').textContent = r.stats.extensions; }
-    $('nlist').replaceChildren(...(r.notes || []).map(t => Object.assign(document.createElement('div'), { textContent: t })));
-  } catch (e) { say("Can't reach the phone. Same Wi-Fi? Is Study Mirror on?", false); }
+    const state = await call('state');
+    if (!state || !state.mode) {
+      updateBadge(false, 'Unreachable');
+      return;
+    }
+    updateBadge(true, state.mode.toLowerCase(), state.rtt);
+
+    // Sync Break Clock if Phone Extended
+    if (mode === 'break' && state.mode === 'BREAK') {
+      const left = state.breakLeftMs - (state.rtt || 0) / 2;
+      endAt = Date.now() + left;
+      if (left / 1000 > dur) dur = Math.ceil(left / 1000);
+    } else if (mode === 'break' && state.mode === 'FOCUS') {
+      setMode('focus', getFocusMinutes() * 60);
+    } else if (state.mode === 'IDLE' && mode !== 'idle') {
+      setMode('idle', 0);
+    }
+
+    // Populate Analytics & Notes
+    if (state.stats) {
+      $('statBlocks').textContent = state.stats.blocks || 0;
+      $('statBlocked').textContent = state.stats.blocked || 0;
+      $('statUrges').textContent = state.stats.urges || 0;
+      $('statExtensions').textContent = state.stats.extensions || 0;
+    }
+    if (state.notes && state.notes.length > 0) {
+      $('notesFeed').innerHTML = state.notes
+        .map(n => `<div class="note-item">${n}</div>`)
+        .join('');
+    }
+  } catch (err) {
+    updateBadge(false, 'Offline');
+  }
+}
+setInterval(pollPhone, 2500);
+
+function updateBadge(connected, text, rtt) {
+  const dot = $('dot');
+  const badgeText = $('badgeText');
+  const rttText = $('rttText');
+
+  dot.className = 'status-dot' + (connected ? ' online' : '');
+  badgeText.textContent = connected ? `Phone (${text})` : text;
+  rttText.textContent = rtt ? `${rtt}ms` : '';
 }
 
-// ---------- window controls
-function setPin(on) { pinned = on; L.sm_pin = on ? '1' : '0'; $('pin').classList.toggle('on', on); send('pin', on); }
-function setMini(on) { mini = on; document.body.classList.toggle('mini', on); send('mini', on); if (!on) send('pin', pinned); }
-$('pin').onclick = () => setPin(!pinned);
-$('mini').onclick = () => setMini(true);
-$('mback').onclick = () => setMini(false);
-$('wmin').onclick = () => send('min'); $('wmax').onclick = () => send('max'); $('wx').onclick = () => send('close');
-$('gear').onclick = () => document.body.classList.toggle('set');
-setPin(pinned);
-
-$('dm').onclick = () => { $('fmin').value = Math.max(1, mins() - 5); paint(); };
-$('dp').onclick = () => { $('fmin').value = Math.min(240, mins() + 5); paint(); };
-document.querySelectorAll('.chip').forEach(c => c.onclick = () => { $('fmin').value = c.dataset.m; paint(); });
-['fmin', 'bmin', 'task'].forEach(i => $(i).oninput = paint);
-$('tot').onchange = () => { total = Math.max(1, +$('tot').value || 5); paint(); };
-$('snd').onchange = () => { L.sm_snd = $('snd').checked ? '1' : '0'; };
-document.addEventListener('keydown', e => {
-  if (/INPUT|TEXTAREA/.test(e.target.tagName)) return;
-  if (e.code === 'Space') { e.preventDefault(); $('start').click(); }
-  else if (e.key === 'm' || e.key === 'M') setMini(!mini);
-  else if (e.key === 'p' || e.key === 'P') setPin(!pinned);
+// --- Quick Presets & Inputs ---
+$('decMin').onclick = () => {
+  $('focusMinInput').value = Math.max(1, getFocusMinutes() - 5);
+  L.sm_fmin = getFocusMinutes();
+};
+$('incMin').onclick = () => {
+  $('focusMinInput').value = Math.min(240, getFocusMinutes() + 5);
+  L.sm_fmin = getFocusMinutes();
+};
+document.querySelectorAll('.chip-btn').forEach(btn => {
+  btn.onclick = () => {
+    $('focusMinInput').value = btn.dataset.m;
+    L.sm_fmin = btn.dataset.m;
+    updateVisuals();
+  };
 });
 
-applyAcc(L.sm_acc || themes.Blue); paint(); poll(); setInterval(poll, 2000);
+$('focusMinInput').oninput = () => { L.sm_fmin = getFocusMinutes(); };
+$('breakMinInput').oninput = () => { L.sm_bmin = getBreakMinutes(); };
+$('taskInput').oninput = () => { L.sm_task = $('taskInput').value; };
+$('totalBlocksInput').onchange = () => {
+  total = Math.max(1, +$('totalBlocksInput').value || 5);
+  L.sm_total = total;
+  renderBlockMatrix();
+};
+$('soundToggle').onchange = () => { L.sm_snd = $('soundToggle').checked ? '1' : '0'; };
+
+// --- Window & Drawer Controls ---
+function setPin(active) {
+  pinned = active;
+  L.sm_pin = active ? '1' : '0';
+  $('pinBtn').classList.toggle('active', active);
+  send('pin', active);
+}
+function setMiniMode(active) {
+  mini = active;
+  document.body.classList.toggle('mini', active);
+  send('mini', active);
+  if (!active) send('pin', pinned);
+}
+
+$('pinBtn').onclick = () => setPin(!pinned);
+$('miniBtn').onclick = () => setMiniMode(true);
+$('miniExpandBtn').onclick = () => setMiniMode(false);
+$('wMin').onclick = () => send('min');
+$('wMax').onclick = () => send('max');
+$('wClose').onclick = () => send('close');
+
+// Drawer Toggle & Tabs
+const drawer = $('drawerOverlay');
+$('drawerToggle').onclick = () => document.body.classList.toggle('drawer-open');
+$('phoneBadge').onclick = () => {
+  document.body.classList.add('drawer-open');
+  selectDrawerTab('tab-phone');
+};
+$('closeDrawer').onclick = () => document.body.classList.remove('drawer-open');
+
+function selectDrawerTab(tabId) {
+  document.querySelectorAll('.drawer-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.tab === tabId);
+  });
+  document.querySelectorAll('.tab-pane').forEach(p => {
+    p.style.display = p.id === tabId ? 'block' : 'none';
+  });
+}
+document.querySelectorAll('.drawer-tab').forEach(tab => {
+  tab.onclick = () => selectDrawerTab(tab.dataset.tab);
+});
+
+$('testConnBtn').onclick = async () => {
+  $('testConnBtn').textContent = 'Pinging...';
+  try {
+    const res = await call('ping');
+    if (res && res.ok) {
+      alert('Connected to Study Mirror successfully!');
+    } else {
+      alert('Could not verify connection code.');
+    }
+  } catch (e) {
+    alert('Connection failed. Make sure your phone is on the same Wi-Fi network.');
+  }
+  $('testConnBtn').textContent = 'Test Connection';
+};
+
+// Global Keyboard Shortcuts
+document.addEventListener('keydown', e => {
+  if (/INPUT|TEXTAREA/.test(e.target.tagName)) return;
+  if (e.code === 'Space') {
+    e.preventDefault();
+    $('startBtn').click();
+  } else if (e.key === '[' || e.key === '{') {
+    e.preventDefault();
+    $('prevBlock').click();
+  } else if (e.key === ']' || e.key === '}') {
+    e.preventDefault();
+    $('nextBlock').click();
+  } else if (e.key === 'b' || e.key === 'B') {
+    startBreakSession();
+  } else if (e.key === 'm' || e.key === 'M') {
+    setMiniMode(!mini);
+  } else if (e.key === 'p' || e.key === 'P') {
+    setPin(!pinned);
+  } else if (e.key === 'Escape') {
+    document.body.classList.remove('drawer-open');
+    closePair();
+  }
+});
+
+
+// --- Pair phone (QR) ---
+let pairInfo = null;
+let pairIdx = 0;
+let pairHintTimer = null;
+
+function setPairStatus(text, kind) {
+  $('pairStatus').className = 'pair-status' + (kind ? ' ' + kind : '');
+  $('pairStatusText').textContent = text;
+}
+
+async function renderPair() {
+  if (!pairInfo) return;
+  const info = pairInfo;
+  const chips = $('pairIps');
+  chips.innerHTML = '';
+  info.ips.forEach((x, i) => {
+    const b = document.createElement('button');
+    b.className = 'pair-chip' + (i === pairIdx ? ' active' : '');
+    b.textContent = x.ip;
+    b.title = x.name;
+    b.onclick = () => { pairIdx = i; renderPair(); };
+    chips.appendChild(b);
+  });
+  if (!info.ips.length) {
+    $('pairQr').innerHTML = '';
+    $('pairQr').classList.add('dim');
+    $('pairTyped').textContent = 'No network found';
+    setPairStatus('This laptop is not connected to Wi-Fi or Ethernet.', 'bad');
+    return;
+  }
+  const url = info.urls[pairIdx];
+  const host = info.ips[pairIdx].ip + ':' + info.port;
+  try {
+    $('pairQr').innerHTML = await window.sm.makeQr(url);
+    $('pairQr').classList.remove('dim');
+  } catch (e) {
+    setPairStatus('Could not draw the QR: ' + e.message, 'bad');
+    return;
+  }
+  const typed = $('pairTyped');
+  typed.innerHTML = '';
+  typed.append('or type  ');
+  const b1 = document.createElement('b'); b1.textContent = host;
+  typed.append(b1, '   key ');
+  const b2 = document.createElement('b'); b2.textContent = info.key;
+  typed.append(b2);
+  $('pairPing').textContent = 'http://' + host + '/ping';
+  if (info.error) setPairStatus(info.error, 'bad');
+  else setPairStatus('Waiting for the phone at ' + host + ' ...', '');
+}
+
+async function openPair() {
+  $('pairOverlay').classList.add('open');
+  $('pairOverlay').setAttribute('aria-hidden', 'false');
+  const hasApp = !!window.sm;
+  $('pairWeb').style.display = hasApp ? 'none' : 'block';
+  $('pairBody').style.display = hasApp ? 'block' : 'none';
+  if (!hasApp) return;
+  $('pairQr').classList.add('dim');
+  setPairStatus('Preparing...', '');
+  clearTimeout(pairHintTimer);
+  try {
+    pairInfo = await window.sm.getPairingInfo();
+    pairIdx = 0;
+    await renderPair();
+    pairHintTimer = setTimeout(() => {
+      if ($('pairOverlay').classList.contains('open') && !$('pairStatus').classList.contains('ok')) {
+        setPairStatus('Still waiting. Open "Not connecting?" below if the phone says it cannot reach the laptop.', '');
+      }
+    }, 25000);
+  } catch (e) {
+    setPairStatus('Could not start pairing: ' + e.message, 'bad');
+  }
+}
+
+function closePair() {
+  clearTimeout(pairHintTimer);
+  $('pairOverlay').classList.remove('open');
+  $('pairOverlay').setAttribute('aria-hidden', 'true');
+}
+
+$('pairBtn').onclick = openPair;
+$('pairBtn2').onclick = () => { document.body.classList.remove('drawer-open'); openPair(); };
+$('pairClose').onclick = closePair;
+$('pairRefresh').onclick = openPair;
+$('pairOverlay').addEventListener('mousedown', e => { if (e.target === $('pairOverlay')) closePair(); });
+$('fixFw').onclick = async () => {
+  setPairStatus('Windows will ask for permission. Choose Yes.', '');
+  const r = await window.sm.fixFirewall();
+  setPairStatus(r.ok ? 'Firewall updated. Scan the QR again.' : 'Could not change the firewall: ' + r.reason, r.ok ? 'ok' : 'bad');
+};
+
+if (window.sm) {
+  window.sm.on('phone-paired', info => {
+    $('phoneIp').value = info.ip;
+    $('phoneCode').value = info.token;
+    L.sm_ip = info.ip;
+    L.sm_code = info.token;
+    setPairStatus('Phone linked. All set.', 'ok');
+    $('pairQr').classList.add('dim');
+    pollPhone();
+    setTimeout(closePair, 1600);
+  });
+}
+
+// Initialization
+setPin(pinned);
+renderBlockMatrix();
+pollPhone();
 </script>
 </body>
 </html>

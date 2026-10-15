@@ -1,3 +1,9 @@
 const { contextBridge, ipcRenderer } = require('electron');
-const ok = ['pin', 'mini', 'max', 'min', 'close'];
-contextBridge.exposeInMainWorld('sm', { send: (c, v) => { if (ok.includes(c)) ipcRenderer.send(c, v); } });
+
+contextBridge.exposeInMainWorld('sm', {
+  send: (channel, data) => ipcRenderer.send(channel, data),
+  on: (channel, callback) => ipcRenderer.on(channel, (_, ...args) => callback(...args)),
+  getPairingInfo: () => ipcRenderer.invoke('get-pairing-info'),
+  makeQr: text => ipcRenderer.invoke('make-qr', text),
+  fixFirewall: () => ipcRenderer.invoke('fix-firewall')
+});

@@ -10,13 +10,13 @@ import android.view.View
 
 /** The big circular timer on the main screen. Draws a ring, the time, and one label line. */
 class RingView(c: Context) : View(c) {
-    private val track = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; color = Color.parseColor("#243847") }
+    private val track = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; color = Color.argb(36, 255, 255, 255) }
     private val bar = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND }
     private val big = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#EAF2EE"); textAlign = Paint.Align.CENTER
-        typeface = Typeface.create(Typeface.SERIF, Typeface.BOLD)
+        color = Theme.INK; textAlign = Paint.Align.CENTER
+        typeface = Theme.mono(c, 700)
     }
-    private val small = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#9FB4C4"); textAlign = Paint.Align.CENTER }
+    private val small = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Theme.SOFT; textAlign = Paint.Align.CENTER; typeface = Theme.sans(c, 500) }
     private var target = 0f
     private var shown = 0f
     private var bigText = ""

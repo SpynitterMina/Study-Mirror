@@ -1,0 +1,635 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Study Mirror &middot; Focus Companion</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<!-- Battle-tested, ISO-compliant standalone QRCode.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  :root {
+    --bg-base: #080c10;
+    --bg-surface: rgba(16, 26, 36, 0.72);
+    --bg-surface-elevated: rgba(23, 37, 51, 0.85);
+    --line: rgba(255, 255, 255, 0.08);
+    --line-active: rgba(255, 255, 255, 0.18);
+    --ink-primary: #f0f6f4;
+    --ink-secondary: #9cb1c2;
+    --ink-muted: #5e7688;
+    --acc: #4f8cf6;
+    --acc-glow: rgba(79, 140, 246, 0.35);
+    --acc-subtle: rgba(79, 140, 246, 0.12);
+    --radius-sm: 8px;
+    --radius-md: 14px;
+    --radius-lg: 20px;
+    --radius-full: 9999px;
+  }
+
+  body[data-mode="break"] {
+    --acc: #3ecf8e;
+    --acc-glow: rgba(62, 207, 142, 0.35);
+    --acc-subtle: rgba(62, 207, 142, 0.12);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+  
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    background: var(--bg-base);
+    color: var(--ink-primary);
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    background-image: 
+      radial-gradient(ellipse 70% 50% at 50% -10%, var(--acc-glow), transparent 70%),
+      radial-gradient(circle at 100% 100%, rgba(13, 22, 33, 0.9), transparent 60%);
+    background-color: var(--bg-base);
+    transition: background-image 0.8s ease;
+  }
+
+  .titlebar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 44px;
+    padding: 0 12px 0 16px;
+    background: rgba(8, 12, 16, 0.4);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--line);
+    -webkit-app-region: drag;
+    z-index: 40;
+  }
+  .title-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .app-logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--ink-primary);
+  }
+  .app-logo svg {
+    width: 16px;
+    height: 16px;
+    fill: var(--acc);
+    filter: drop-shadow(0 0 6px var(--acc));
+  }
+  .phone-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: var(--radius-full);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--line);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--ink-secondary);
+    transition: all 0.25s ease;
+    cursor: pointer;
+    -webkit-app-region: no-drag;
+  }
+  .status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #64748b;
+  }
+  .status-dot.online {
+    background: #10b981;
+    box-shadow: 0 0 8px #10b981;
+  }
+  .status-dot.busy {
+    background: var(--acc);
+    box-shadow: 0 0 8px var(--acc);
+  }
+
+  .tool-actions, .window-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    -webkit-app-region: no-drag;
+  }
+  .icon-btn {
+    background: transparent;
+    border: none;
+    color: var(--ink-muted);
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    transition: all 0.15s ease;
+  }
+  .icon-btn:hover {
+    background: var(--bg-surface-elevated);
+    color: var(--ink-primary);
+  }
+  .icon-btn.highlight {
+    color: #fff;
+    background: var(--acc-subtle);
+    border: 1px solid var(--acc);
+  }
+  .icon-btn.danger:hover {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+  }
+
+  .workspace {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px 28px 20px;
+    overflow-y: auto;
+  }
+
+  .task-wrapper {
+    width: 100%;
+    max-width: 480px;
+    margin-bottom: 6px;
+  }
+  .task-input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--line);
+    color: var(--ink-primary);
+    text-align: center;
+    font-size: 19px;
+    font-weight: 600;
+    padding: 8px 12px;
+    outline: none;
+    transition: all 0.3s ease;
+    user-select: text;
+  }
+  .task-input:focus {
+    border-color: var(--acc);
+    box-shadow: 0 1px 0 var(--acc);
+  }
+
+  .block-stepper-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    margin: 8px 0 14px;
+    padding: 8px 16px;
+    background: var(--bg-surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-full);
+    backdrop-filter: blur(16px);
+  }
+  .stepper-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink-secondary);
+  }
+  .stepper-nav {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .step-arrow-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 1px solid var(--line);
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--ink-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 11px;
+    transition: all 0.2s;
+  }
+  .block-track {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .block-pill {
+    min-width: 28px;
+    height: 28px;
+    padding: 0 8px;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--line);
+    background: rgba(255, 255, 255, 0.02);
+    color: var(--ink-muted);
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .block-pill.done {
+    background: rgba(62, 207, 142, 0.15);
+    border-color: rgba(62, 207, 142, 0.4);
+    color: #3ecf8e;
+  }
+  .block-pill.active {
+    background: var(--acc);
+    border-color: var(--acc);
+    color: #060a0e;
+    box-shadow: 0 0 12px var(--acc);
+  }
+
+  .ring-container {
+    position: relative;
+    width: min(280px, 66vw);
+    aspect-ratio: 1;
+    margin: 4px 0 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .ring-svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+  }
+  .ring-bg {
+    stroke: rgba(255, 255, 255, 0.04);
+    fill: none;
+    stroke-width: 6.5;
+  }
+  .ring-indicator {
+    stroke: var(--acc);
+    fill: none;
+    stroke-width: 6.5;
+    stroke-linecap: round;
+    stroke-dasharray: 691;
+    stroke-dashoffset: 0;
+    filter: drop-shadow(0 0 10px var(--acc-glow));
+    transition: stroke-dashoffset 0.25s linear;
+  }
+  .ring-center-content {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .phase-badge {
+    padding: 3px 12px;
+    border-radius: var(--radius-full);
+    background: var(--acc-subtle);
+    border: 1px solid var(--acc);
+    color: var(--acc);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .timer-clock {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(48px, 14vmin, 72px);
+    font-weight: 700;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .sub-state {
+    font-size: 13px;
+    color: var(--ink-secondary);
+    margin-top: 6px;
+  }
+
+  .control-grid {
+    width: 100%;
+    max-width: 400px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 13px 18px;
+    border-radius: var(--radius-md);
+    border: 1px solid transparent;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn.primary {
+    grid-column: 1 / -1;
+    background: var(--acc);
+    color: #07121a;
+    box-shadow: 0 4px 18px var(--acc-glow);
+  }
+  .btn.secondary {
+    background: var(--bg-surface);
+    border-color: var(--line);
+    color: var(--ink-primary);
+  }
+
+  /* Robust QR Code Card */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(4, 7, 11, 0.88);
+    backdrop-filter: blur(16px);
+    z-index: 100;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  body.qr-open .modal-backdrop { display: flex; }
+  .qr-card {
+    width: 100%;
+    max-width: 380px;
+    background: #0f1822;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 22px 20px;
+    position: relative;
+    text-align: center;
+  }
+  .qr-close-btn {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    background: transparent;
+    border: none;
+    color: var(--ink-muted);
+    font-size: 16px;
+    cursor: pointer;
+  }
+  .qr-badge-pill {
+    padding: 4px 12px;
+    border-radius: var(--radius-full);
+    background: var(--acc-subtle);
+    border: 1px solid var(--acc);
+    color: var(--acc);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .qr-title { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+  .qr-desc { font-size: 12px; color: var(--ink-secondary); margin-bottom: 12px; }
+
+  /* Container with guaranteed white margin for Google Lens recognition */
+  .qr-white-plate {
+    background: #ffffff;
+    padding: 16px;
+    border-radius: 14px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 14px;
+  }
+  #qrcodeTarget img, #qrcodeTarget canvas {
+    display: block;
+    width: 200px !important;
+    height: 200px !important;
+  }
+
+  .ip-selector-row {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 12px;
+    background: #091017;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: 6px 10px;
+  }
+  .ip-selector-row label { font-size: 11px; font-weight: 600; color: var(--ink-muted); }
+  .ip-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--ink-primary);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    outline: none;
+  }
+
+  .qr-status-footer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--ink-secondary);
+  }
+  body.web .electron-only { display: none; }
+</style>
+</head>
+<body data-mode="idle">
+
+<div class="titlebar">
+  <div class="title-left">
+    <div class="app-logo">
+      <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      <span>Study Mirror</span>
+    </div>
+    <div class="phone-badge" id="phoneBadge">
+      <span class="status-dot" id="dot"></span>
+      <span id="badgeText">Waiting for Phone</span>
+      <span id="rttText" style="opacity:0.6;font-size:10px;"></span>
+    </div>
+  </div>
+
+  <div class="tool-actions">
+    <button class="icon-btn highlight" id="pairQrBtn" title="Scan QR Code from Phone">
+      Pair QR
+    </button>
+    <button class="icon-btn electron-only" id="pinBtn">Pin</button>
+    <div class="window-actions electron-only">
+      <button class="icon-btn" id="wMin">&ndash;</button>
+      <button class="icon-btn" id="wMax">&#9633;</button>
+      <button class="icon-btn danger" id="wClose">&#10005;</button>
+    </div>
+  </div>
+</div>
+
+<div class="workspace">
+  <div class="task-wrapper">
+    <input class="task-input" id="taskInput" placeholder="What are you mastering today?" maxlength="70" autocomplete="off">
+  </div>
+
+  <div class="block-stepper-card">
+    <div class="stepper-header">
+      <div class="stepper-nav">
+        <button class="step-arrow-btn" id="prevBlock">&#9664;</button>
+        <span class="meta-label" id="blockMeta">Block 1 of 5</span>
+        <button class="step-arrow-btn" id="nextBlock">&#9654;</button>
+      </div>
+    </div>
+    <div class="block-track" id="blockTrack"></div>
+  </div>
+
+  <div class="ring-container">
+    <svg class="ring-svg" viewBox="0 0 240 240">
+      <circle class="ring-bg" cx="120" cy="120" r="110"/>
+      <circle class="ring-indicator" id="ringProgress" cx="120" cy="120" r="110"/>
+    </svg>
+    <div class="ring-center-content">
+      <div class="phase-badge" id="phaseBadge">Ready</div>
+      <div class="timer-clock" id="timerClock">50:00</div>
+      <div class="sub-state" id="subState">Set your goal &amp; begin</div>
+    </div>
+  </div>
+
+  <div class="control-grid">
+    <button class="btn primary" id="startBtn">
+      <span id="startBtnLabel">Start Block 1</span>
+    </button>
+    <button class="btn secondary" id="breakBtn">
+      <span>Break &middot; <span id="breakMinLabel">10</span>m</span>
+    </button>
+    <button class="btn secondary" id="endBtn">
+      <span>End Session</span>
+    </button>
+  </div>
+</div>
+
+<!-- High-Standard QR Pairing Modal -->
+<div class="modal-backdrop" id="qrModal">
+  <div class="qr-card">
+    <button class="qr-close-btn" id="closeQrModal">&#10005;</button>
+    <div class="qr-badge-pill">Zero-Config Pairing</div>
+    <div class="qr-title">Link with Study Mirror</div>
+    <div class="qr-desc">Point your phone's Study Mirror camera scanner at this code.</div>
+
+    <div class="qr-white-plate">
+      <div id="qrcodeTarget"></div>
+    </div>
+
+    <div class="ip-selector-row">
+      <label for="laptopIpInput">Wi-Fi IP:</label>
+      <input class="ip-input" id="laptopIpInput" placeholder="192.168.1.xxx">
+    </div>
+
+    <div class="qr-status-footer">
+      <span class="status-dot busy" id="qrPulseDot"></span>
+      <span id="qrStatusText">Waiting for scan...</span>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const CIRCUMFERENCE = 691;
+const L = localStorage;
+let block = +L.sm_block || 1;
+let total = +L.sm_total || 5;
+let mode = 'idle';
+let endAt = 0, dur = 0, paused = 0;
+let qrcodeInstance = null;
+let activePairKey = '';
+let activePairPort = 8765;
+
+function renderQr() {
+  const ip = $('laptopIpInput').value.trim() || '192.168.1.100';
+  L.sm_last_laptop_ip = ip;
+  const host = `${ip}:${activePairPort}`;
+  const qrData = `studymirror://pair?h=${host}&k=${activePairKey}`;
+
+  const target = $('qrcodeTarget');
+  target.innerHTML = '';
+  
+  // QRCode.js creates compliant QR with correct padding for Google Lens
+  if (window.QRCode) {
+    qrcodeInstance = new QRCode(target, {
+      text: qrData,
+      width: 200,
+      height: 200,
+      colorDark: '#000000',
+      colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.M
+    });
+  }
+  $('qrStatusText').textContent = `Waiting for phone at ${host}...`;
+}
+
+async function showQrModal() {
+  document.body.classList.add('qr-open');
+  activePairKey = Math.random().toString(36).substring(2, 8);
+  let currentIp = L.sm_last_laptop_ip || '';
+
+  if (window.sm && window.sm.getPairingInfo) {
+    try {
+      const info = await window.sm.getPairingInfo();
+      activePairPort = info.port;
+      activePairKey = info.key;
+      if (info.ips && info.ips.length > 0) currentIp = info.ips[0];
+    } catch (e) {}
+  }
+  if (!currentIp || currentIp.startsWith('127.')) currentIp = '192.168.1.100';
+  $('laptopIpInput').value = currentIp;
+  renderQr();
+}
+
+$('laptopIpInput').oninput = renderQr;
+$('pairQrBtn').onclick = showQrModal;
+$('closeQrModal').onclick = () => document.body.classList.remove('qr-open');
+
+if (window.sm && window.sm.on) {
+  window.sm.on('phone-paired', ({ ip, token }) => {
+    L.sm_ip = ip;
+    L.sm_code = token;
+    $('qrStatusText').textContent = 'Phone connected!';
+    $('qrPulseDot').className = 'status-dot online';
+    setTimeout(() => { document.body.classList.remove('qr-open'); pollPhone(); }, 1000);
+  });
+}
+
+function renderBlockMatrix() {
+  $('blockMeta').textContent = `Block ${block} of ${total}`;
+  $('startBtnLabel').textContent = mode === 'focus' ? (paused ? 'Resume Block ' + block : 'Pause Block ' + block) : `Start Block ${block}`;
+  const track = $('blockTrack');
+  track.innerHTML = '';
+  for (let i = 1; i <= total; i++) {
+    const pill = document.createElement('div');
+    pill.className = 'block-pill' + (i < block ? ' done' : (i === block ? ' active' : ''));
+    pill.textContent = i;
+    pill.onclick = () => { block = i; L.sm_block = block; renderBlockMatrix(); };
+    track.appendChild(pill);
+  }
+}
+$('prevBlock').onclick = () => { if (block > 1) { block--; renderBlockMatrix(); } };
+$('nextBlock').onclick = () => { if (block < total) { block++; renderBlockMatrix(); } };
+
+renderBlockMatrix();
+</script>
+</body>
+</html>

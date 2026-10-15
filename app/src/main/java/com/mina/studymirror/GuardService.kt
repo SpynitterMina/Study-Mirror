@@ -1,10 +1,6 @@
 package com.mina.studymirror
 
 import android.accessibilityservice.AccessibilityService
-import android.app.Notification
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.PendingIntent
 import android.content.pm.ApplicationInfo
 import android.content.Context
 import android.content.Intent
@@ -24,6 +20,8 @@ import android.view.View
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.widget.Button
+import android.widget.FrameLayout
+import android.widget.ScrollView
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -51,6 +49,10 @@ class GuardService : AccessibilityService() {
     }
 
     private val ui = Handler(Looper.getMainLooper())
+    private lateinit var notifier: Notifier
+    private lateinit var island: Island
+    private var islandQuote = ""
+    private var screenAccent = 0
 
     @Volatile var mode = Mode.IDLE
     @Volatile var block = 1
@@ -86,9 +88,10 @@ class GuardService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
-        val ch = NotificationChannel("session", "Study session", NotificationManager.IMPORTANCE_LOW)
-        ch.setShowBadge(false)
-        getSystemService(NotificationManager::class.java).createNotificationChannel(ch)
+        notifier = Notifier(this)
+        notifier.init()
+        island = Island(this)
+        startIslandTicks()
         startServer()
     }
 
@@ -97,7 +100,8 @@ class GuardService : AccessibilityService() {
     override fun onDestroy() {
         instance = null
         ui.removeCallbacksAndMessages(null)
-        try { getSystemService(NotificationManager::class.java).cancel(1) } catch (e: Exception) {}
+        try { notifier.cancelAll() } catch (e: Exception) {}
+        try { island.hide() } catch (e: Exception) {}
         removeOverlay()
         try { server?.close() } catch (e: Exception) {}
         server = null
@@ -137,35 +141,65 @@ class GuardService : AccessibilityService() {
         } catch (e: Exception) { true }
     }
 
-    // ------------------------------------------------------------ notification
+    // ------------------------------------------------------------ notification + island
+    private fun snap(): Snap = Snap(
+        mode, block, total, task, leftMs(),
+        if (mode == Mode.BREAK) breakDurMs else focusDurMs,
+        focusStartWall, Prefs.breakChoice(this)
+    )
+
     private fun updateNotification() {
-        val nm = getSystemService(NotificationManager::class.java)
-        val wall = System.currentTimeMillis()
-        val mono = SystemClock.elapsedRealtime()
-        when (mode) {
-            Mode.IDLE -> nm.cancel(1)
-            Mode.BREAK -> {
-                val pick = Prefs.breakChoice(this)
-                post("Break" + if (pick.isNotEmpty()) " \u00B7 $pick" else "", "Back to ${label(block + 1)} when it ends", wall + (breakEndAt - mono), true)
-            }
-            Mode.FOCUS -> {
-                val line = if (task.isNotEmpty()) task else "You're doing very well"
-                if (focusEndAt > 0) post("Focus \u00B7 ${label(block)}", line, wall + (focusEndAt - mono), true)
-                else post("Focus \u00B7 ${label(block)}", line, focusStartWall, false)
-            }
-        }
+        try { notifier.update(snap()) } catch (e: Exception) {}
+        refreshIsland()
     }
 
-    private fun post(title: String, text: String, whenMs: Long, down: Boolean) {
-        try {
-            val pi = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
-            val b = Notification.Builder(this, "session")
-                .setSmallIcon(R.drawable.ic_stat).setContentTitle(title).setContentText(text)
-                .setOngoing(true).setOnlyAlertOnce(true).setContentIntent(pi)
-                .setCategory(Notification.CATEGORY_PROGRESS)
-                .setWhen(whenMs).setUsesChronometer(true).setChronometerCountDown(down)
-            getSystemService(NotificationManager::class.java).notify(1, b.build())
-        } catch (e: Exception) {}
+    private fun fmtMs(ms: Long): String {
+        val s = (ms + 999) / 1000
+        return if (s >= 3600) "%d:%02d:%02d".format(s / 3600, s % 3600 / 60, s % 60) else "%d:%02d".format(s / 60, s % 60)
+    }
+
+    private fun quoteLine(p: Pair<String, String>) = "\u201C${p.first}\u201D \u2014 ${p.second}"
+
+    private fun islandFrame(): Island.Frame? {
+        if (mode == Mode.IDLE) return null
+        val inBreak = mode == Mode.BREAK
+        val left = leftMs()
+        val dur = if (inBreak) breakDurMs else focusDurMs
+        val accent = if (inBreak) Cfg.BREAK else Cfg.accent(this)
+        val timeText = if (left >= 0) fmtMs(left) else "Focus"
+        val lab = if (inBreak) "Break" else if (total > 0) "Block $block/$total" else "Block $block"
+        val prog = if (left >= 0 && dur > 0) left.toFloat() / dur.toFloat() else 1f
+        val title = if (inBreak) "Break time" else if (task.isNotEmpty()) task else label(block)
+        if (islandQuote.isEmpty()) islandQuote = quoteLine(if (inBreak) Quotes.rest() else Quotes.focus())
+        return Island.Frame(lab, timeText, prog, title, islandQuote, accent)
+    }
+
+    private fun refreshIsland() {
+        try { island.update(islandFrame()) } catch (e: Exception) {}
+    }
+
+    private fun startIslandTicks() {
+        val r = object : Runnable {
+            override fun run() {
+                refreshIsland()
+                ui.postDelayed(this, 1000)
+            }
+        }
+        ui.post(r)
+    }
+
+    /** Called by the Settings screen after any change. */
+    fun applyConfig() {
+        updateNotification()
+        try { island.rebuild() } catch (e: Exception) {}
+    }
+
+    fun previewIsland() {
+        try { island.preview(Cfg.accent(this)) } catch (e: Exception) {}
+    }
+
+    fun testAlert() {
+        notifier.alert("Block 2 of 5", Quotes.focus().first)
     }
 
     fun leftMs(): Long {
@@ -229,7 +263,10 @@ class GuardService : AccessibilityService() {
         focusDurMs = sec * 1000L
         focusEndAt = if (sec > 0) SystemClock.elapsedRealtime() + sec * 1000L else 0L
         focusStartWall = System.currentTimeMillis()
+        islandQuote = quoteLine(Quotes.focus())
         updateNotification()
+        notifier.alert(label(block), if (task.isNotEmpty()) task else "Focus session started. You've got this.")
+        island.pop(label(block), if (task.isNotEmpty()) task else islandQuote, 4500L)
         Toast.makeText(this, "Focus: ${label(block)}", Toast.LENGTH_SHORT).show()
         buzz()
     }
@@ -242,7 +279,10 @@ class GuardService : AccessibilityService() {
         breakEndAt = endAt
         breakDurMs = seconds * 1000L
         Prefs.setBreakChoice(this, "")
+        islandQuote = quoteLine(Quotes.rest())
         updateNotification()
+        notifier.alert("Break time", "Pick what to do, then put the phone away.")
+        island.pop("Break time", islandQuote, 4500L)
         endingShown = false
         showBreakMenu()
         buzz()
@@ -287,12 +327,15 @@ class GuardService : AccessibilityService() {
         endingShown = false
         focusEndAt = 0L
         focusStartWall = System.currentTimeMillis()
+        islandQuote = quoteLine(Quotes.focus())
         updateNotification()
+        notifier.alert("Back to ${label(block)}", Quotes.focus().first)
+        island.pop("Back to ${label(block)}", islandQuote, 5000L)
         buzz()
-        val r = box(Color.parseColor("#14283A"))
+        val r = box(Cfg.accent(this))
         r.addView(tv("🎯", 56f))
         r.addView(tv("Back to ${label(block)}", 28f, bold = true))
-        r.addView(tv(Quotes.line(), 18f))
+        r.addView(tv(Quotes.focusLine(), 18f))
         r.addView(btn("Let's go") { goHomeAndClose() })
         show(Kind.BACK, r)
         val v = overlay
@@ -302,9 +345,9 @@ class GuardService : AccessibilityService() {
     // ------------------------------------------------------------------ screens
 
     private fun showBreakMenu() {
-        val r = box(Color.parseColor("#1F5A43"))
+        val r = box(Cfg.BREAK)
         r.addView(tv("🌿 Break time", 30f, bold = true))
-        val cd = tv("", 44f, bold = true)
+        val cd = tv("", 44f, bold = true, mono = true)
         r.addView(cd)
 
         val menu = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
@@ -325,17 +368,17 @@ class GuardService : AccessibilityService() {
         }
 
         menu.addView(tv("What do you want to do?", 18f))
-        menu.addView(btn("🚶 Walk") {
+        menu.addView(btn("🚶 Walk", primary = false) {
             choose("🚶 Walk", "Phone in your pocket. Look at far things and breathe slowly. Try it without audio.")
         })
-        menu.addView(btn("🍎 Snack") {
+        menu.addView(btn("🍎 Snack", primary = false) {
             choose("🍎 Snack", "Something light and some water. Eat slowly, away from any screen.")
         })
-        menu.addView(btn("🎵 Music") { openMusic() })
-        menu.addView(btn("💧 Water and stretch") {
+        menu.addView(btn("🎵 Music", primary = false) { openMusic() })
+        menu.addView(btn("💧 Water and stretch", primary = false) {
             choose("💧 Water and stretch", "A glass of water, then shoulders, neck and back. Stand up tall.")
         })
-        menu.addView(btn("😌 Rest my eyes") {
+        menu.addView(btn("😌 Rest my eyes", primary = false) {
             choose("😌 Rest my eyes", "Look out of a window at something far away. Close your eyes for a minute.")
         })
 
@@ -352,14 +395,16 @@ class GuardService : AccessibilityService() {
 
     private fun showEnding() {
         endingShown = true
-        val r = box(Color.parseColor("#14283A"))
+        val r = box(Cfg.swatches[3].second)
         r.addView(tv("⏳", 52f))
         r.addView(tv("Break is ending", 28f, bold = true))
-        val cd = tv("", 64f, bold = true)
+        val cd = tv("", 64f, bold = true, mono = true)
         r.addView(cd)
         r.addView(tv("Time to go back. ${label(block + 1)} is waiting.\nYou've got this.", 18f))
         r.addView(btn("I'm ready") { goHomeAndClose() })
-        if (!extUsed) r.addView(btn("I need 5 more minutes") { showExtend() })
+        if (!extUsed) r.addView(btn("I need 5 more minutes", primary = false) { showExtend() })
+        island.pop("Break ends in 10 seconds", "${label(block + 1)} is next", 6000L)
+        notifier.alert("Break ends in 10 seconds", "${label(block + 1)} is next.")
         show(Kind.ENDING, r)
         countdown = cd
         updateCountdown()
@@ -367,18 +412,19 @@ class GuardService : AccessibilityService() {
     }
 
     private fun showBlocked() {
-        val r = box(Color.parseColor("#14283A"))
+        val r = box(if (mode == Mode.BREAK) Cfg.BREAK else Cfg.accent(this))
         if (mode == Mode.BREAK) {
             r.addView(tv("🌿", 56f))
             r.addView(tv("Not during your break", 26f, bold = true))
             r.addView(tv("Breaks are for recharging, not scrolling. Walk, snack, or put on some music.", 17f))
+            r.addView(tv(Quotes.restLine(), 14f, Theme.SOFT))
             r.addView(btn("OK") { goHomeAndClose() })
         } else {
             r.addView(tv("🎯", 56f))
             r.addView(tv("You're in ${label(block)}", 26f, bold = true))
-            r.addView(tv(Quotes.line(), 17f))
+            r.addView(tv(Quotes.focusLine(), 17f))
             r.addView(btn("Back to focus") { goHomeAndClose() })
-            r.addView(btn("I feel the urge to escape") { showUrge() })
+            r.addView(btn("I feel the urge to escape", primary = false) { showUrge() })
         }
         show(Kind.BLOCKED, r)
         val v = overlay
@@ -387,11 +433,12 @@ class GuardService : AccessibilityService() {
 
     private fun showUrge() {
         Prefs.bump(this, "urges")
-        val r = box(Color.parseColor("#2A2140"))
+        val r = box(Cfg.VIOLET)
         r.addView(tv("🌊", 52f))
         r.addView(tv("The urge peaks, then it fades", 24f, bold = true))
-        val cd = tv("3:00", 48f, bold = true)
+        val cd = tv("3:00", 48f, bold = true, mono = true)
         r.addView(cd)
+        r.addView(tv(Quotes.calmLine(), 15f, Theme.SOFT))
         r.addView(tv("What are you feeling right now? One line is enough.", 16f))
         val et = EditText(this).apply {
             setTextColor(Color.WHITE)
@@ -399,6 +446,7 @@ class GuardService : AccessibilityService() {
             hint = "too much, scared I won't finish..."
             maxLines = 3
         }
+        styleField(et)
         r.addView(et, LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         r.addView(btn("Write it down, keep going") {
@@ -428,7 +476,7 @@ class GuardService : AccessibilityService() {
         val hold = 75_000L
         breakEndAt += hold
         endingShown = true
-        val r = box(Color.parseColor("#14283A"))
+        val r = box(Cfg.swatches[3].second)
         r.addView(tv("5 more minutes?", 26f, bold = true))
         r.addView(tv("Why do you need them? Be honest. The wait is part of the deal.", 16f))
         val et = EditText(this).apply {
@@ -437,6 +485,7 @@ class GuardService : AccessibilityService() {
             hint = "my reason..."
             maxLines = 3
         }
+        styleField(et)
         r.addView(et, LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         val go = btn("Wait 60s") {}
@@ -458,7 +507,7 @@ class GuardService : AccessibilityService() {
             }
         }
         r.addView(go)
-        r.addView(btn("Never mind, back to focus") {
+        r.addView(btn("Never mind, back to focus", primary = false) {
             breakEndAt -= hold
             endingShown = false
             showEnding()
@@ -501,33 +550,43 @@ class GuardService : AccessibilityService() {
 
     // ----------------------------------------------------------- overlay helpers
 
-    private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
-
-    private fun box(color: Int): LinearLayout = LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL
-        gravity = Gravity.CENTER
-        setBackgroundColor(color)
-        setPadding(dp(28), dp(48), dp(28), dp(48))
+    private fun box(accent: Int): LinearLayout {
+        screenAccent = accent
+        val img = Backgrounds.random(this)
+        val blur = Build.VERSION.SDK_INT >= 31 && Cfg.blur(this)
+        val veil = (Cfg.dim(this) * 255 / 100).coerceIn(0, 255)
+        val l = LinearLayout(this)
+        l.orientation = LinearLayout.VERTICAL
+        l.gravity = Gravity.CENTER
+        l.background = GlowDrawable(accent, img, veil, if (blur) 214 else 255)
+        l.setPadding(dp(28), dp(56), dp(28), dp(48))
+        return l
     }
 
-    private fun tv(t: String, size: Float, color: Int = Color.WHITE, bold: Boolean = false): TextView =
+    private fun tv(t: String, size: Float, color: Int = Theme.INK, bold: Boolean = false, mono: Boolean = false): TextView =
         TextView(this).apply {
             text = t
             textSize = size
             setTextColor(color)
             gravity = Gravity.CENTER
-            if (bold) setTypeface(typeface, Typeface.BOLD)
+            typeface = if (mono) Theme.mono(this@GuardService, 700) else Theme.sans(this@GuardService, if (bold) 700 else 500)
+            setLineSpacing(0f, 1.12f)
             setPadding(0, dp(8), 0, dp(8))
         }
 
-    private fun btn(label: String, onClick: () -> Unit): Button = Button(this).apply {
+    private fun btn(label: String, primary: Boolean = true, onClick: () -> Unit): Button = Button(this).apply {
         text = label
         isAllCaps = false
-        textSize = 18f
-        setTextColor(Color.parseColor("#14283A"))
-        background = GradientDrawable().apply {
-            cornerRadius = dp(28).toFloat()
-            setColor(Color.parseColor("#E8F1EC"))
+        textSize = 17f
+        typeface = Theme.sans(this@GuardService, 700)
+        stateListAnimator = null
+        elevation = 0f
+        if (primary) {
+            setTextColor(Theme.DARK_ON_ACCENT)
+            background = fill(screenAccent, 26)
+        } else {
+            setTextColor(Theme.INK)
+            background = glass(26, strong = true)
         }
         setPadding(dp(20), dp(14), dp(20), dp(14))
         setOnClickListener { onClick() }
@@ -537,9 +596,21 @@ class GuardService : AccessibilityService() {
         ).apply { topMargin = dp(10) }
     }
 
-    private fun show(kind: Kind, v: View) {
+    private fun styleField(et: EditText) {
+        et.background = glass(14)
+        et.typeface = Theme.sans(this, 500)
+        et.setPadding(dp(14), dp(12), dp(14), dp(12))
+    }
+
+    private fun show(kind: Kind, view: View) {
         removeOverlay()
         try {
+            val v: View = if (view is LinearLayout) {
+                val sv = ScrollView(this)
+                sv.isFillViewport = true
+                sv.addView(view, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT))
+                sv
+            } else view
             val wm = getSystemService(Context.WINDOW_SERVICE) as WindowManager
             val lp = WindowManager.LayoutParams(
                 WindowManager.LayoutParams.MATCH_PARENT,
@@ -552,6 +623,14 @@ class GuardService : AccessibilityService() {
             if (Build.VERSION.SDK_INT >= 28) {
                 lp.layoutInDisplayCutoutMode =
                     WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+            }
+            if (Build.VERSION.SDK_INT >= 31 && Cfg.blur(this)) {
+                try {
+                    if (wm.isCrossWindowBlurEnabled) {
+                        lp.flags = lp.flags or WindowManager.LayoutParams.FLAG_BLUR_BEHIND
+                        lp.blurBehindRadius = dp(28)
+                    }
+                } catch (e: Exception) {}
             }
             lp.softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN
             v.isFocusableInTouchMode = true
