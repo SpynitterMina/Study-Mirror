@@ -158,8 +158,8 @@ You can also pair by hand: open **Config → Phone Link** on the laptop, type th
 The desktop app is built with **Electron**.
 
 ```bash
-git clone https://github.com/YOUR-USERNAME/StudyMirror.git
-cd StudyMirror/desktop
+git clone https://github.com/SpynitterMina/Study-Mirror.git
+cd Study-Mirror/desktop
 npm install
 npm start
 ```
@@ -175,7 +175,7 @@ The result appears in `desktop/dist/`.
 **Project layout**
 
 ```
-StudyMirror/
+Study-Mirror/
 ├── desktop/      Electron desktop control center (main.js, index.html, build/)
 ├── laptop/       Single-file browser version of the control center
 └── docs/         Screenshots used in this README
@@ -185,7 +185,7 @@ StudyMirror/
 
 ## 🤝 Contributing
 
-Ideas and bug reports are welcome. Open an [issue](https://github.com/SpynitterMina/StudyMirror/issues) and describe what you saw.
+Ideas and bug reports are welcome. Open an [issue](https://github.com/SpynitterMina/Study-Mirror/issues) and describe what you saw.
 
 ## 📄 License
 
