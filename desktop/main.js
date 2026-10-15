@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, screen } = require('electron');
 const path = require('path');
 const { execFile } = require('child_process');
 const QRCode = require('qrcode');
@@ -6,6 +6,8 @@ const { getLocalIps } = require('./lan');
 const { createPairingServer, PORT } = require('./pairing');
 
 let mainWindow;
+let miniState = null;
+app.setAppUserModelId('com.mina.studymirror.control');
 
 const pairing = createPairingServer({
   onPair: info => mainWindow && mainWindow.webContents.send('phone-paired', info),
@@ -19,6 +21,8 @@ function createWindow() {
     minWidth: 360,
     minHeight: 520,
     frame: false,
+    title: 'Study Mirror',
+    icon: path.join(__dirname, 'build', 'icon.png'),
     backgroundColor: '#080c10',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -43,12 +47,25 @@ ipcMain.on('close', () => mainWindow?.close());
 ipcMain.on('mini', (_, isMini) => {
   if (!mainWindow) return;
   if (isMini) {
-    mainWindow.setMinimumSize(280, 75);
-    mainWindow.setSize(320, 85);
-    mainWindow.setAlwaysOnTop(true);
+    if (miniState) return;
+    miniState = { bounds: mainWindow.getNormalBounds(), max: mainWindow.isMaximized(), full: mainWindow.isFullScreen() };
+    if (miniState.full) mainWindow.setFullScreen(false);
+    if (miniState.max) mainWindow.unmaximize();
+    const apply = () => {
+      const wa = screen.getDisplayMatching(miniState.bounds).workArea;
+      mainWindow.setMinimumSize(280, 72);
+      mainWindow.setBounds({ x: wa.x + wa.width - 340, y: wa.y + 24, width: 320, height: 84 });
+      mainWindow.setAlwaysOnTop(true, 'screen-saver');
+    };
+    if (miniState.max || miniState.full) setTimeout(apply, 150); else apply();
   } else {
+    if (!miniState) return;
+    const st = miniState;
+    miniState = null;
     mainWindow.setMinimumSize(360, 520);
-    mainWindow.setSize(440, 740);
+    mainWindow.setBounds(st.bounds);
+    if (st.max) mainWindow.maximize();
+    if (st.full) mainWindow.setFullScreen(true);
   }
 });
 

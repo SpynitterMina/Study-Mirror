@@ -788,6 +788,26 @@
   .pair-help code { user-select: text; font: 500 11px 'JetBrains Mono', monospace; color: var(--ink-primary); background: rgba(255,255,255,0.07); padding: 1px 5px; border-radius: 5px; }
   .pair-web { display: none; font-size: 13px; line-height: 1.6; color: var(--ink-secondary); padding: 8px 4px 4px; }
   @media (prefers-reduced-motion: reduce) { .pair-dot, .pair-overlay.open { animation: none; } }
+
+  /* ---- v2.1 polish: tidy title bar at any width, clean mini mode ---- */
+  .titlebar, .titlebar * { white-space: nowrap; }
+  .title-left { min-width: 0; }
+  .tool-actions { flex-shrink: 0; }
+  .icon-btn svg { width: 16px; height: 16px; flex: none; }
+  .icon-btn .lbl { display: none; margin-left: 7px; }
+  .window-actions { margin-left: 6px; padding-left: 8px; border-left: 1px solid var(--line); }
+  @media (min-width: 780px) { .icon-btn .lbl { display: inline; } }
+  @media (max-width: 520px) {
+    .app-logo span, #rttText { display: none; }
+    .titlebar { padding: 0 8px 0 12px; }
+    .icon-btn { padding: 6px 8px; }
+  }
+  @media (max-width: 400px) { #badgeText { display: none; } }
+  body.mini { overflow: hidden; box-shadow: inset 0 0 0 1px var(--line); }
+  body.mini .workspace > :not(.mini-bar) { display: none !important; }
+  body.mini .workspace { overflow: hidden; padding: 0; }
+  body.mini .pair-overlay, body.mini .drawer { display: none !important; }
+  body.mini .mini-bar { padding: 0 12px; gap: 8px; }
 </style>
 </head>
 <body data-mode="idle">
@@ -807,10 +827,10 @@
   </div>
 
   <div class="tool-actions">
-    <button class="icon-btn electron-only" id="pinBtn" title="Keep on top (P)">Pin</button>
-    <button class="icon-btn electron-only" id="miniBtn" title="Mini window (M)">Mini</button>
-    <button class="icon-btn" id="pairBtn" title="Pair your phone with a QR code">Pair phone</button>
-    <button class="icon-btn" id="drawerToggle" title="Settings & Analytics">Config</button>
+    <button class="icon-btn electron-only" id="pinBtn" title="Keep on top (P)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5M9 3h6l-1 7 3 3H7l3-3-1-7z"/></svg><span class="lbl">Pin</span></button>
+    <button class="icon-btn electron-only" id="miniBtn" title="Mini window (M)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><rect x="12" y="12" width="7" height="5" rx="1" fill="currentColor"/></svg><span class="lbl">Mini</span></button>
+    <button class="icon-btn" id="pairBtn" title="Pair your phone with a QR code"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM17 20h4v-3"/></svg><span class="lbl">Pair phone</span></button>
+    <button class="icon-btn" id="drawerToggle" title="Settings & Analytics"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg><span class="lbl">Config</span></button>
     <div class="window-actions electron-only">
       <button class="icon-btn" id="wMin">&ndash;</button>
       <button class="icon-btn" id="wMax">&#9633;</button>
