@@ -184,16 +184,23 @@ class MainActivity : Activity() {
             t.orientation = LinearLayout.VERTICAL
             t.gravity = Gravity.CENTER
             t.background = glass(18)
-            t.setPadding(dp(8), dp(12), dp(8), dp(12))
+            t.setPadding(dp(8), dp(10), dp(8), dp(10))
             val n = TextView(this)
             n.typeface = Theme.mono(this, 700)
             n.textSize = 24f
             n.setTextColor(INK)
             n.gravity = Gravity.CENTER
             n.text = "0"
-            t.addView(n)
-            t.addView(txt(label, 11f, SOFT).apply { gravity = Gravity.CENTER })
-            val lp = LinearLayout.LayoutParams(0, -2, 1f)
+            n.setSingleLine(true)
+            t.addView(n, LinearLayout.LayoutParams(-1, -2))
+            t.addView(txt(label, 11f, SOFT).apply {
+                gravity = Gravity.CENTER
+                maxLines = 1
+                setSingleLine(true)
+                ellipsize = android.text.TextUtils.TruncateAt.END
+            }, LinearLayout.LayoutParams(-1, -2))
+            // FIX: uniform tile height — fixed dp height so two-line labels can't stretch one tile
+            val lp = LinearLayout.LayoutParams(0, dp(86), 1f)
             lp.setMargins(dp(4), 0, dp(4), 0)
             stats.addView(t, lp)
             return n
@@ -237,8 +244,17 @@ class MainActivity : Activity() {
         pairMsg.setPadding(0, 0, 0, dp(6))
         lc.addView(pairMsg)
         val btns = LinearLayout(this)
-        val b1 = pill("Scan the laptop QR", true) { scan() }
+        btns.gravity = Gravity.CENTER_VERTICAL
+        val b1 = pill("Scan QR", true) { scan() }
         val b2 = pill("Type the code", false) { manualPair() }
+        // FIX: equal visual weight — same height, single line, true 50/50 split
+        for (b in listOf(b1, b2)) {
+            b.setSingleLine(true)
+            b.ellipsize = android.text.TextUtils.TruncateAt.END
+            b.gravity = Gravity.CENTER
+            b.minHeight = dp(44)
+            b.minimumHeight = dp(44)
+        }
         val bp1 = LinearLayout.LayoutParams(0, -2, 1f)
         bp1.rightMargin = dp(6)
         val bp2 = LinearLayout.LayoutParams(0, -2, 1f)

@@ -200,19 +200,31 @@
     box-shadow: 0 1px 0 var(--acc);
   }
 
-  /* Interactive Block Matrix / Stepper */
+  /* Interactive Block Matrix / Stepper — floating pill, fluid at any window width */
   .block-stepper-card {
+    position: sticky;
+    top: 0;
+    z-index: 5;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 8px;
-    margin: 10px 0 16px;
+    width: fit-content;
+    max-width: calc(100vw - 56px);
+    margin: 10px auto 16px;
     padding: 8px 16px;
     background: var(--bg-surface);
     border: 1px solid var(--line);
     border-radius: var(--radius-full);
     backdrop-filter: blur(16px);
     box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .block-stepper-card::-webkit-scrollbar { display: none; }
+  @media (max-width: 520px) {
+    .block-stepper-card { padding: 6px 10px; border-radius: 18px; max-width: calc(100vw - 24px); }
+    .stepper-header { flex-wrap: wrap; justify-content: center; row-gap: 4px; }
   }
   .stepper-header {
     display: flex;
@@ -879,8 +891,8 @@
   </div>
 
   <!-- Duration Presets & Fine Adjuster -->
-  <div class="presets-row">
-    <div class="preset-stepper">
+  <div class="presets-row" style="flex-wrap:wrap;justify-content:center;row-gap:8px;">
+    <div class="preset-stepper" title="Focus length">
       <button class="stepper-btn" id="decMin" aria-label="Subtract 5 mins">&minus;</button>
       <input class="stepper-input" id="focusMinInput" type="number" min="1" max="240" value="50">
       <span class="unit-label">m</span>
@@ -890,6 +902,15 @@
       <button class="chip-btn" data-m="25">25</button>
       <button class="chip-btn active" data-m="50">50</button>
       <button class="chip-btn" data-m="90">90</button>
+    </div>
+    <!-- Break length, editable right on the home page as m:ss (e.g. 9:50). Synced with Config tab. -->
+    <div class="preset-stepper" title="Break length (minutes : seconds)">
+      <button class="stepper-btn" id="decBreakSec" aria-label="Subtract 30s">&minus;</button>
+      <input class="stepper-input" id="breakMinMain" type="number" min="0" max="60" value="10" style="width:36px;" title="Break minutes">
+      <span style="color:var(--ink-muted);font-weight:700;">:</span>
+      <input class="stepper-input" id="breakSecMain" type="number" min="0" max="59" value="0" style="width:36px;" title="Break seconds">
+      <span class="unit-label">brk</span>
+      <button class="stepper-btn" id="incBreakSec" aria-label="Add 30s">+</button>
     </div>
   </div>
 
@@ -901,7 +922,7 @@
     </button>
     <button class="btn secondary" id="breakBtn">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/></svg>
-      <span>Break &middot; <span id="breakMinLabel">10</span>m</span>
+      <span>Break &middot; <span id="breakMinLabel">10:00</span></span>
     </button>
     <button class="btn secondary" id="endBtn">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
@@ -938,6 +959,7 @@
     </div>
     <div class="drawer-tabs">
       <button class="drawer-tab active" data-tab="tab-timer">Timer</button>
+      <button class="drawer-tab" data-tab="tab-apps">App Rules</button>
       <button class="drawer-tab" data-tab="tab-phone">Phone Link</button>
       <button class="drawer-tab" data-tab="tab-stats">Stats &amp; Notes</button>
     </div>
@@ -951,6 +973,7 @@
         <div class="field-group">
           <label class="field-label">Break Duration (Minutes)</label>
           <input class="text-input" type="number" id="breakMinInput" min="1" max="60" value="10">
+          <div style="font-size:11px;color:var(--ink-muted);margin-top:4px;">Tip: edit precisely on the home page as m:ss (e.g. 9:50). Seconds live there.</div>
         </div>
         <div class="field-group">
           <label class="field-label">Target Blocks Today</label>
@@ -960,6 +983,24 @@
           <input type="checkbox" id="soundToggle" checked style="accent-color:var(--acc);">
           <label for="soundToggle" style="font-size:13px;color:var(--ink-secondary);cursor:pointer;">Play chime when block/break ends</label>
         </div>
+      </div>
+
+      <!-- App Rules Tab (desktop is the editor; phone enforces read-only) -->
+      <div class="tab-pane" id="tab-apps" style="display:none;">
+        <div style="display:flex;gap:6px;margin-bottom:12px;">
+          <button class="chip-btn" id="modeBlockBtn">Block selected</button>
+          <button class="chip-btn" id="modeAllowBtn">Allow only selected</button>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Packages (one per line, e.g. com.instagram.android)</label>
+          <textarea class="text-input" id="rulesText" rows="10" placeholder="com.instagram.android&#10;com.zhiliaoapp.musically&#10;com.whatsapp" style="font-family:'JetBrains Mono',monospace;resize:vertical;"></textarea>
+          <div style="font-size:11px;color:var(--ink-muted);margin-top:4px;" id="rulesHint">Block-list mode: ticked apps stay closed during focus &amp; breaks.</div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn primary" id="pushRulesBtn" style="flex:1;">Push to phone</button>
+          <button class="btn secondary" id="pullRulesBtn" style="flex:1;">Pull from phone</button>
+        </div>
+        <div id="rulesStatus" style="font-size:12px;color:var(--ink-secondary);margin-top:8px;min-height:18px;"></div>
       </div>
 
       <!-- Phone Link Tab -->
@@ -1076,6 +1117,8 @@ $('phoneIp').value = L.sm_ip || '';
 $('phoneCode').value = L.sm_code || '';
 $('focusMinInput').value = L.sm_fmin || 50;
 $('breakMinInput').value = L.sm_bmin || 10;
+$('breakMinMain').value = (L.sm_bmin != null ? L.sm_bmin : 10);
+$('breakSecMain').value = (L.sm_bsec != null ? L.sm_bsec : 0);
 $('totalBlocksInput').value = total;
 $('taskInput').value = L.sm_task || '';
 $('soundToggle').checked = L.sm_snd !== '0';
@@ -1108,7 +1151,21 @@ for (const [name, hex] of Object.entries(themes)) {
 }
 
 const getFocusMinutes = () => Math.min(240, Math.max(1, parseInt($('focusMinInput').value) || 50));
-const getBreakMinutes = () => Math.min(60, Math.max(1, parseInt($('breakMinInput').value) || 10));
+// Break is m:ss precise on the home page (e.g. 9:50). Drawer input stays as whole minutes and syncs.
+const getBreakSeconds = () => {
+  const m = Math.min(60, Math.max(0, parseInt($('breakMinMain').value) || 0));
+  const s = Math.min(59, Math.max(0, parseInt($('breakSecMain').value) || 0));
+  return Math.max(5, m * 60 + s);
+};
+const getBreakMinutes = () => Math.max(1, Math.round(getBreakSeconds() / 60));
+function setBreakSeconds(totalSec) {
+  totalSec = Math.max(5, Math.min(60 * 60, totalSec || 600));
+  const m = Math.floor(totalSec / 60), s = totalSec % 60;
+  $('breakMinMain').value = m; $('breakSecMain').value = s;
+  $('breakMinInput').value = Math.max(1, Math.round(totalSec / 60));
+  L.sm_bmin = m; L.sm_bsec = s;
+}
+const fmtBreak = sec => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
 
 const formatTime = seconds => {
   const h = Math.floor(seconds / 3600);
@@ -1272,8 +1329,8 @@ function updateVisuals() {
     $('ringProgress').style.strokeDashoffset = 0;
   }
 
-  $('breakMinLabel').textContent = getBreakMinutes();
-  document.querySelectorAll('.chip-btn').forEach(c => {
+  $('breakMinLabel').textContent = fmtBreak(getBreakSeconds());
+  document.querySelectorAll('.quick-chips .chip-btn').forEach(c => {
     c.classList.toggle('active', +c.dataset.m === getFocusMinutes());
   });
 }
@@ -1306,19 +1363,25 @@ function getBaseUrl() {
   return 'http://' + ip;
 }
 
-async function call(cmd, params = {}) {
+async function call(cmd, params = {}, retries = 2) {
   const code = $('phoneCode').value.trim();
   const q = new URLSearchParams(Object.assign({ t: code }, params)).toString();
   const url = `${getBaseUrl()}/${cmd}?${q}`;
   const t0 = performance.now();
-  try {
-    const res = await (await fetch(url)).json();
-    res.rtt = Math.round(performance.now() - t0);
-    return res;
-  } catch (err) {
-    try { await fetch(url, { mode: 'no-cors' }); } catch (_) {}
-    return null;
+  for (let i = 0; i <= retries; i++) {
+    try {
+      const res = await (await fetch(url)).json();
+      res.rtt = Math.round(performance.now() - t0);
+      return res;
+    } catch (err) {
+      if (i === retries) {
+        try { await fetch(url, { mode: 'no-cors' }); } catch (_) {}
+        return null;
+      }
+      await new Promise(r => setTimeout(r, 500));
+    }
   }
+  return null;
 }
 
 async function startBlockSession() {
@@ -1340,14 +1403,15 @@ function toggleTimerPause() {
 }
 
 async function startBreakSession() {
-  const mins = getBreakMinutes();
-  const res = await call('break', { min: mins });
-  setMode('break', mins * 60);
+  const secs = getBreakSeconds();
+  const res = await call('break', { sec: secs });
+  setMode('break', secs);
   if (res && res.leftMs) {
     endAt = Date.now() + res.leftMs - (res.rtt || 0) / 2;
   }
   // Increment block index for the subsequent round
   if (block < total) block++;
+  L.sm_block = block;
   renderBlockMatrix();
 }
 
@@ -1401,6 +1465,8 @@ async function pollPhone() {
   } catch (err) {
     updateBadge(false, 'Offline');
   }
+  // keep-alive: touch /ping so phone's lastContact stays fresh even when idle
+  try { if ($('phoneIp').value.trim() && $('phoneCode').value.trim()) fetch(`${getBaseUrl()}/ping`).catch(() => {}); } catch (_) {}
 }
 setInterval(pollPhone, 2500);
 
@@ -1423,7 +1489,7 @@ $('incMin').onclick = () => {
   $('focusMinInput').value = Math.min(240, getFocusMinutes() + 5);
   L.sm_fmin = getFocusMinutes();
 };
-document.querySelectorAll('.chip-btn').forEach(btn => {
+document.querySelectorAll('.quick-chips .chip-btn').forEach(btn => {
   btn.onclick = () => {
     $('focusMinInput').value = btn.dataset.m;
     L.sm_fmin = btn.dataset.m;
@@ -1431,8 +1497,59 @@ document.querySelectorAll('.chip-btn').forEach(btn => {
   };
 });
 
+// --- App Rules (desktop edits, phone enforces) ---
+let rulesModeAllow = false;
+function paintRulesMode() {
+  $('modeBlockBtn').classList.toggle('active', !rulesModeAllow);
+  $('modeAllowBtn').classList.toggle('active', rulesModeAllow);
+  $('rulesHint').textContent = rulesModeAllow
+    ? 'Allow-only mode: only listed apps stay open. Everything else closes.'
+    : 'Block-list mode: listed apps stay closed during focus & breaks.';
+}
+$('modeBlockBtn').onclick = () => { rulesModeAllow = false; paintRulesMode(); };
+$('modeAllowBtn').onclick = () => { rulesModeAllow = true; paintRulesMode(); };
+paintRulesMode();
+$('pullRulesBtn').onclick = async () => {
+  $('rulesStatus').textContent = 'Reading phone…';
+  try {
+    const r = await call('rules');
+    if (!r || !r.ok && r.mode === undefined) { $('rulesStatus').textContent = 'Phone unreachable.'; return; }
+    rulesModeAllow = !!r.allowOnly; paintRulesMode();
+    const list = rulesModeAllow ? (r.allowed || []) : (r.escape || []);
+    $('rulesText').value = list.join('\n');
+    $('rulesStatus').textContent = `Loaded ${list.length} app(s) (${rulesModeAllow ? 'allow-only' : 'block-list'}).`;
+  } catch (e) { $('rulesStatus').textContent = 'Failed: ' + e.message; }
+};
+$('pushRulesBtn').onclick = async () => {
+  const pkgs = $('rulesText').value.split('\n').map(s => s.trim()).filter(Boolean).join(',');
+  $('rulesStatus').textContent = 'Pushing…';
+  const params = { allowOnly: rulesModeAllow ? '1' : '0' };
+  if (rulesModeAllow) params.allowed = pkgs; else params.escape = pkgs;
+  // retry x3: phone HTTP server can drop first packet on sleepy Wi-Fi
+  let r = null;
+  for (let i = 0; i < 3 && !r; i++) { r = await call('rules', params); if (!r) await new Promise(res => setTimeout(res, 600)); }
+  $('rulesStatus').textContent = r ? 'Phone updated.' : 'Phone unreachable — is it on the same Wi-Fi?';
+};
+
 $('focusMinInput').oninput = () => { L.sm_fmin = getFocusMinutes(); };
-$('breakMinInput').oninput = () => { L.sm_bmin = getBreakMinutes(); };
+// Home break editor (m:ss) <-> drawer minutes input stay in sync both ways.
+const syncBreakFromMain = () => {
+  const m = Math.min(60, Math.max(0, parseInt($('breakMinMain').value) || 0));
+  const s = Math.min(59, Math.max(0, parseInt($('breakSecMain').value) || 0));
+  $('breakMinMain').value = m; $('breakSecMain').value = s;
+  L.sm_bmin = m; L.sm_bsec = s;
+  $('breakMinInput').value = Math.max(1, Math.round((m * 60 + s) / 60));
+  updateVisuals();
+};
+$('breakMinMain').oninput = syncBreakFromMain;
+$('breakSecMain').oninput = syncBreakFromMain;
+$('decBreakSec').onclick = () => setBreakSeconds(getBreakSeconds() - 30);
+$('incBreakSec').onclick = () => setBreakSeconds(getBreakSeconds() + 30);
+$('breakMinInput').oninput = () => {
+  const mins = Math.min(60, Math.max(1, parseInt($('breakMinInput').value) || 10));
+  setBreakSeconds(mins * 60);
+  updateVisuals();
+};
 $('taskInput').oninput = () => { L.sm_task = $('taskInput').value; };
 $('totalBlocksInput').onchange = () => {
   total = Math.max(1, +$('totalBlocksInput').value || 5);
@@ -1616,6 +1733,7 @@ $('fixFw').onclick = async () => {
 };
 
 if (window.sm) {
+  // FIX race: pairing event may arrive before first poll — apply + poll immediately + auto-close.
   window.sm.on('phone-paired', info => {
     $('phoneIp').value = info.ip;
     $('phoneCode').value = info.token;
@@ -1624,6 +1742,7 @@ if (window.sm) {
     setPairStatus('Phone linked. All set.', 'ok');
     $('pairQr').classList.add('dim');
     pollPhone();
+    setTimeout(() => { pollPhone(); if ($('pairOverlay').classList.contains('open')) closePair(); }, 800);
     setTimeout(closePair, 1600);
   });
 }

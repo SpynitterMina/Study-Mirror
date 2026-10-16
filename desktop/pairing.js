@@ -53,6 +53,10 @@ function createPairingServer({ onPair, port = PORT, log = () => {} }) {
           res.setHeader('Access-Control-Allow-Origin', '*');
           res.setHeader('Access-Control-Allow-Private-Network', 'true');
           res.setHeader('Cache-Control', 'no-store');
+          res.setHeader('Access-Control-Allow-Headers', '*');
+          res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+          res.setHeader('Access-Control-Max-Age', '86400');
+          if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
           if (!local && !isPrivate(remote)) { res.writeHead(403); return res.end(); }
 
           let url;

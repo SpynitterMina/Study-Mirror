@@ -14,6 +14,13 @@ const pairing = createPairingServer({
   log: m => console.log(m)
 });
 
+function ensureFirewallRuleSilent() {
+  // Auto-add firewall rule on startup so Windows never prompts mid-pairing.
+  if (process.platform !== 'win32') return;
+  const cmd = `netsh advfirewall firewall show rule name=StudyMirrorPairing | Out-Null; if ($LASTEXITCODE -ne 0) { Start-Process netsh -ArgumentList 'advfirewall','firewall','add','rule','name=StudyMirrorPairing','dir=in','action=allow','protocol=TCP','localport=${PORT}','profile=private,public' -WindowStyle Hidden }`;
+  execFile('powershell.exe', ['-NoProfile', '-WindowStyle', 'Hidden', '-Command', cmd], () => {});
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 440,
@@ -34,7 +41,7 @@ function createWindow() {
   pairing.start();
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => { ensureFirewallRuleSilent(); createWindow(); });
 app.on('window-all-closed', () => { pairing.stop(); if (process.platform !== 'darwin') app.quit(); });
 
 ipcMain.on('pin', (_, on) => mainWindow?.setAlwaysOnTop(!!on));

@@ -69,7 +69,7 @@ class Island(private val svc: AccessibilityService) {
     private val collapseRun = Runnable { message = null; animateTo(0f) }
 
     private fun dp(v: Int) = svc.dp(v)
-    private fun scale(): Float = when (Cfg.islandSize(svc)) { 0 -> 0.9f; 2 -> 1.18f; else -> 1f }
+    private fun scale(): Float = when (Cfg.islandSize(svc)) { 0 -> 0.72f; 2 -> 1.18f; else -> 1f }
 
     // -------------------------------------------------------------------- public
 
@@ -266,8 +266,10 @@ class Island(private val svc: AccessibilityService) {
         val comp = compact ?: return
         comp.measure(MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED), MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
         compW = max(comp.measuredWidth, dp(120))
-        compH = if (cutBottom > 0) (cutBottom - cutTop) + dp(8) else dp(30)
-        compH = (compH * (if (cutBottom > 0) 1f else scale())).toInt()
+        // FIX: small island must hug the cutout — scale height always, not only when no cutout exists
+        val sc = scale()
+        compH = if (cutBottom > 0) (((cutBottom - cutTop) + dp(8)) * sc).toInt().coerceAtLeast(dp(22))
+                else (dp(30) * sc).toInt()
         expW = min(screenWidth() - dp(24), dp(360))
         shape?.cornerRadius = compH / 2f
 

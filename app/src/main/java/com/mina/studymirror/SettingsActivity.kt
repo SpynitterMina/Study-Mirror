@@ -163,7 +163,8 @@ class SettingsActivity : Activity() {
 
         val col = LinearLayout(this)
         col.orientation = LinearLayout.VERTICAL
-        col.setPadding(dp(18), dp(40), dp(18), dp(28))
+        // FIX: extra top padding + header breathing room so "Done" is never clipped by status bar
+        col.setPadding(dp(18), dp(68), dp(18), dp(28))
         val scroll = ScrollView(this)
         scroll.addView(col)
         scroll.background = GlowDrawable(accent)
@@ -172,8 +173,12 @@ class SettingsActivity : Activity() {
         // ---- header
         val head = LinearLayout(this)
         head.gravity = Gravity.CENTER_VERTICAL
+        head.setPadding(0, dp(8), 0, dp(8))
         head.addView(txt("Settings", 26f, Theme.INK, 800), LinearLayout.LayoutParams(0, -2, 1f))
-        head.addView(pill("Done", false) { finish() })
+        val doneBtn = pill("Done", false) { finish() }
+        doneBtn.minHeight = dp(40)
+        doneBtn.minimumHeight = dp(40)
+        head.addView(doneBtn)
         col.addView(head)
 
         // ---- color

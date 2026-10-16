@@ -231,6 +231,26 @@ class GuardService : AccessibilityService() {
             }
             "end" -> ui.post { cmdEnd() }
             "state" -> {}
+            "rules" -> {
+                // Remote app-rules management (desktop is the editor, phone is read-only enforcer).
+                // SET: /rules?t=..&allowOnly=0|1&escape=a,b&allowed=c,d  (any subset)
+                // GET: /rules?t=..  returns current lists.
+                q["allowOnly"]?.let { v ->
+                    val allow = v == "1" || v.equals("true", true)
+                    ui.post { Prefs.setAllowOnly(this, allow) }
+                }
+                q["escape"]?.let { v ->
+                    val set = if (v.isBlank()) emptySet() else v.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+                    ui.post { Prefs.setEscape(this, set) }
+                }
+                q["allowed"]?.let { v ->
+                    val set = if (v.isBlank()) emptySet() else v.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+                    ui.post { Prefs.setAllowed(this, set) }
+                }
+                // small delay so ui.post writes land before we serialize
+                Thread.sleep(60)
+                return rulesJson()
+            }
             else -> return "{\"error\":\"unknown command\"}"
         }
         return stateJson()
@@ -245,8 +265,16 @@ class GuardService : AccessibilityService() {
         return "{\"mode\":\"$mode\",\"block\":$block,\"total\":$total,\"breakLeft\":$left,\"breakLeftMs\":$leftMs," +
             "\"stats\":{\"blocks\":${Prefs.count(this, "blocks")},\"blocked\":${Prefs.count(this, "blocked")}," +
             "\"urges\":${Prefs.count(this, "urges")},\"extensions\":${Prefs.count(this, "extensions")}}," +
-            "\"notes\":[$notes]}"
+            "\"notes\":[$notes]," + rulesBody() + "}"
     }
+
+    private fun rulesBody(): String {
+        val esc = Prefs.escape(this).joinToString(",") { "\"" + js(it) + "\"" }
+        val all = Prefs.allowed(this).joinToString(",") { "\"" + js(it) + "\"" }
+        return "\"allowOnly\":${Prefs.allowOnly(this)},\"escape\":[$esc],\"allowed\":[$all]"
+    }
+
+    private fun rulesJson(): String = "{\"ok\":true," + rulesBody() + "}"
 
     private fun nowText() = java.text.SimpleDateFormat("h:mm a", java.util.Locale.US).format(java.util.Date())
 
@@ -757,6 +785,8 @@ class GuardService : AccessibilityService() {
                 "Access-Control-Allow-Origin: *\r\n" +
                 "Access-Control-Allow-Private-Network: true\r\n" +
                 "Access-Control-Allow-Headers: *\r\n" +
+                "Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n" +
+                "Access-Control-Max-Age: 86400\r\n" +
                 "Content-Type: application/json\r\n" +
                 "Content-Length: ${bytes.size}\r\n" +
                 "Connection: close\r\n\r\n"
