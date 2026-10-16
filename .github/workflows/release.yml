@@ -1,0 +1,97 @@
+name: Publish Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to publish (e.g. v3.0). Must already exist, or leave empty to use version files.'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.7
+      - name: Build release APK
+        run: gradle assembleRelease --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apk
+          path: app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+
+  build-desktop:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install
+      - run: npx electron-builder --win portable --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop
+          path: desktop/dist/*.exe
+          if-no-files-found: error
+
+  publish:
+    needs: [build-apk, build-desktop]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Rename assets with tag
+        run: |
+          TAG="${{ github.ref_name }}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.tag }}" ]; then
+            TAG="${{ inputs.tag }}"
+          fi
+          if [ -z "$TAG" ] || [ "$TAG" = "main" ] || [ "$TAG" = "master" ]; then
+            TAG="v$(date +%Y.%m.%d-%H%M)"
+          fi
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+          ls -R dist
+          APK=$(ls dist/*.apk | head -n 1)
+          EXE=$(ls dist/*.exe | head -n 1)
+          cp "$APK" "dist/StudyMirror-Android-${TAG}.apk"
+          cp "$EXE" "dist/StudyMirror-Windows-${TAG}.exe"
+          ls -lh dist/
+      - name: Publish to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG }}
+          name: ${{ env.TAG }}
+          generate_release_notes: true
+          append_body: true
+          body: |
+            ## Study Mirror ${{ env.TAG }}
+
+            Download the files below — no manual re-upload needed.
+
+            - **Android:** `StudyMirror-Android-${{ env.TAG }}.apk` — install on your phone (enable Accessibility + notifications after install).
+            - **Desktop (Windows):** `StudyMirror-Windows-${{ env.TAG }}.exe` — portable, no install needed. Run it, press **Pair phone**, scan the QR.
+
+            Built automatically from this tag by GitHub Actions.
+          files: |
+            dist/StudyMirror-Android-${{ env.TAG }}.apk
+            dist/StudyMirror-Windows-${{ env.TAG }}.exe
